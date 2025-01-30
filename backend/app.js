@@ -5,7 +5,11 @@ const mongoose = require("mongoose");
 const http = require("http");
 const socketio = require("socket.io");
 
+const authRoutes = require('./routes/authRoute');
+
 const app = express();
+app.use(express.json());  // <-- Important: This enables JSON body parsing
+app.use(express.urlencoded({ extended: true }));
 const server = http.createServer(app);
 const io = socketio(server, {
   cors: {
@@ -31,6 +35,8 @@ mongoose
   })
   .then(() => console.log("Connected to MongoDB"))
   .catch((error) => console.error("MongoDB connection error:", error));
+
+app.use('/api', authRoutes);
 
 // Socket.IO Configuration
 io.on("connection", (socket) => {

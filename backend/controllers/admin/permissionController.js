@@ -1,6 +1,6 @@
 const { validationResult } = require("express-validator");
 
-const Permission = require("../../../models/permissionModel");
+const Permission = require("../../models/permissionModel");
 
 const addPermission = async (req, res) => {
   try {
