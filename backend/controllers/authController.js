@@ -1,4 +1,4 @@
-const User = require("./models/userModel");
+const User = require("../models/userModel");
 
 const { validationResult } = require("express-validator");
 
@@ -59,6 +59,11 @@ const registerUser = async (req, res) => {
 
 //access token for jwtwebtoken
 const generateAccessToken = async (user) => {
+  if (!process.env.ACCESS_SECRET_TOKEN) {
+    throw new Error(
+      "ACCESS_SECRET_TOKEN is not defined in the environment variables."
+    );
+  }
   return jwt.sign(user, process.env.ACCESS_SECRET_TOKEN, { expiresIn: "2h" });
 };
 
@@ -76,7 +81,7 @@ const loginUser = async (req, res) => {
 
     //accepting response from api
     const { email, password } = req.body;
-    console.log(email, password);
+
     const userData = await User.findOne({ email });
 
     if (!userData) {
@@ -141,5 +146,3 @@ module.exports = {
   loginUser,
   getProfile,
 };
-
-////////////////    User Profile     ///////////////////

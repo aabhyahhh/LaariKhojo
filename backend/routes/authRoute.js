@@ -1,20 +1,20 @@
-const express = require('express');
-const router= express.Router(); 
+const express = require("express");
+const router = express.Router();
 
-require('../authController');
+require("../authController");
+console.log("hi");
+const { registerValidator, loginValidator } = require("../helpers/validator");
 
-const{ registerValidator, loginValidator } = require('../helpers/validator');
-
-const auth = require('../middlewares/authMiddleware');
+const auth = require("../middlewares/authMiddleware");
 
 // Import authController
-const authController = require('../authController');
+const authController = require("../authController");
 
 // Use authController.registerUser properly
-router.post('/register', registerValidator, authController.registerUser);
-router.post('/login', loginValidator, authController.loginUser);
+router.post("/register", registerValidator, authController.registerUser);
+router.post("/login", loginValidator, authController.loginUser);
 
 //authenticating routes
-router.get('/profile', auth, authController.getProfile);
+router.get("/profile", auth, authController.getProfile);
 
 module.exports = router;
