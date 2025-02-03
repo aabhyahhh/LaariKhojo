@@ -19,14 +19,30 @@ const registerUser = async (req, res) => {
       });
     }
 
-    const { name, email, password } = req.body;
+    const { name, email, password, contactNumber, mapsLink} = req.body;
 
-    const isExistUser = await User.findOne({ email });
+    const isExistEmail = await User.findOne({ email });
 
-    if (isExistUser) {
+    if (isExistEmail) {
       return res.status(409).json({
         success: false,
         msg: "Email already exists!",
+      });
+    }
+
+    const isExistContactNumber = await User.findOne({ contactNumber });
+    const isExistMapsLink = await User.findOne({ mapsLink });
+
+    if (!isExistContactNumber) {
+      return res.status(409).json({
+        success: false,
+        msg: "Please fill Contact details for your Laari!",
+      });
+    }
+    if (!isExistMapsLink) {
+      return res.status(409).json({
+        success: false,
+        msg: "Please fill Location link for your Laari!",
       });
     }
 
@@ -34,6 +50,8 @@ const registerUser = async (req, res) => {
     const user = new User({
       name,
       email,
+      contactNumber,
+      mapsLink,
       password: hashedPassword,
     });
 
@@ -127,19 +145,28 @@ const getProfile = async (req, res) => {
     const user_id = req.user._id;
     const userData = await User.findOne({ _id: user_id });
 
+    if (!userData) {
+      return res.status(404).json({
+        success: false,
+        msg: "User not found",
+      });
+    }
+
     return res.status(200).json({
       success: true,
-      msg: "Profile Data",
+      msg: "Laari Data",
       data: userData,
     });
+
   } catch (error) {
-    return res.status(400).json({
+    return res.status(500).json({
       success: false,
       msg: "User Profile Error",
       error: error.message,
     });
   }
 };
+
 
 module.exports = {
   registerUser,

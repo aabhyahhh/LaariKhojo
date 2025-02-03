@@ -1,6 +1,31 @@
 @import "leaflet/dist/leaflet.css";
 
-#map {
+.relative{
   width: 100%;
+  height: 100%;
+}
+.mapContainer{
+  width: 100vw;
   height: 100vh;
+  justify-content: center;
+  align-items: center;
+  padding: 10px 20px;
+  position: absolute;
+  background-color: rgb(255, 187, 187);
+}
+#map {
+  width: 100vw;
+  height: 100vh;
+}
+.logout-button {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  background-color: #4CAF50;
+  color: white;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  z-index: 1000;
 }

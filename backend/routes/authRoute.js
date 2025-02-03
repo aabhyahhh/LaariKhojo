@@ -1,14 +1,14 @@
 const express = require("express");
 const router = express.Router();
 
-require("../authController");
+require("../controllers/authController");
 console.log("hi");
 const { registerValidator, loginValidator } = require("../helpers/validator");
 
 const auth = require("../middlewares/authMiddleware");
 
 // Import authController
-const authController = require("../authController");
+const authController = require("../controllers/authController");
 
 // Use authController.registerUser properly
 router.post("/register", registerValidator, authController.registerUser);
