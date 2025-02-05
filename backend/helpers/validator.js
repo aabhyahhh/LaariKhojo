@@ -10,6 +10,8 @@ exports.registerValidator = [
         gmail_remove_dots: true
     }),
     check('password', 'Password is required').not().isEmpty(),
+    check('contactNumber', 'Enter valid 10-digit number').not().isEmpty(),
+    check('mapsLink', 'Enter the link for your Laari location').not().isEmpty(),
 ];
 
 exports.loginValidator = [

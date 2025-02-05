@@ -1,17 +1,24 @@
-// App.tsx
 import { useEffect, useRef, useState } from "react";
 import type { Map as LeafletMap } from "leaflet";
 import L from "leaflet";
 import io, { Socket } from "socket.io-client";
 import "leaflet/dist/leaflet.css";
 import "./App.css";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
 import Login from "./components/Login";
+import Register from "./components/Register";
 
 interface UserProfile {
   _id: string;
   name: string;
-  email: string;
-  // Add other profile fields as needed
+  email?: string;
+  contactNumber: string;
+  mapsLink: string;
 }
 
 function App() {
@@ -21,6 +28,7 @@ function App() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [showRegister, setShowRegister] = useState(false);
 
   const fetchProfileData = async () => {
     const token = localStorage.getItem("token");
@@ -47,6 +55,8 @@ function App() {
         _id: data.data._id,
         name: data.data.name,
         email: data.data.email,
+        contactNumber: data.data.contactNumber,
+        mapsLink: data.data.mapsLink,
       });
       // Update marker popup if it exists
       if (markerRef.current) {
@@ -54,7 +64,8 @@ function App() {
           <div>
             <h3>Profile Data</h3>
             <p>Name: ${data.data.name}</p>
-            <p>Email: ${data.data.email}</p>
+            <p>Ph: ${data.data.contactNumber}</p>
+            <p>Maps: ${data.data.mapsLink}</p>
           </div>
         `;
         markerRef.current.setPopupContent(popupContent);
@@ -93,11 +104,26 @@ function App() {
               <div>
                 <h3>Profile Data</h3>
                 <p>Name: ${profile.name}</p>
-                <p>Email: ${profile.email}</p>
+                ${
+                  profile.contactNumber && (
+                    <p>Contact: ${profile.contactNumber}</p>
+                  )
+                }
+                ${
+                  profile.mapsLink && (
+                    <p>
+                      Maps Link:{" "}
+                      <a href="${profile.mapsLink}" target="_blank">
+                        View
+                      </a>
+                    </p>
+                  )
+                }
               </div>
             `
               : "No profile data available";
             !profile && fetchProfileData();
+
             markerRef.current = L.marker([latitude, longitude])
               .addTo(mapRef.current)
               .bindPopup(popupContent)
@@ -112,7 +138,7 @@ function App() {
             socketRef.current.emit("send-location", {
               latitude,
               longitude,
-              userId: profile?._id,
+              userId: profile?._id || "unknown-user",
             });
           }
         },
@@ -129,6 +155,11 @@ function App() {
     } else {
       setError("Geolocation is not supported by this browser");
     }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    setIsLoggedIn(false);
   };
 
   useEffect(() => {
@@ -169,15 +200,77 @@ function App() {
     fetchProfileData();
   };
 
-  if (!isLoggedIn) {
-    return <Login onLoginSuccess={handleLoginSuccess} />;
-  }
+  const handleRegisterSuccess = () => {
+    setShowRegister(false); //hide register component after successful execution
+    window.location.href = "./login";
+  };
 
   return (
-    <div className="relative">
-      <div id="map" style={{ width: "100%", height: "100vh" }} />
-    </div>
+    <Routes>
+      {/* Main app content - redirect to login if not logged in */}
+      <Route
+        path=""
+        element={
+          isLoggedIn ? (
+            <MainAppContent
+              profile={profile}
+              handleLogout={handleLogout}
+              mapRef={mapRef}
+            />
+          ) : (
+            <Navigate to="/login" />
+          )
+        }
+      />
+      <Route path="/map" element={<div>hi</div>} />
+      {/* Login route - redirect to main page if already logged in */}
+      <Route
+        path="/login"
+        element={
+          isLoggedIn ? (
+            <Navigate to="/" />
+          ) : (
+            <Login onLoginSuccess={handleLoginSuccess} />
+          )
+        }
+      />
+
+      {/* Register route - redirect to main page if already logged in */}
+      <Route
+        path="/register"
+        element={<Register onRegisterSuccess={handleRegisterSuccess} />}
+      />
+    </Routes>
   );
 }
+
+const MainAppContent = ({
+  profile,
+  handleLogout,
+  mapRef,
+}: {
+  profile: UserProfile | null;
+  handleLogout: () => void;
+  mapRef: React.RefObject<LeafletMap | null>;
+}) => {
+  return (
+    <>
+      <div className="relative">
+        <div className="mapContainer">
+          <div id="map" style={{ width: "100%", height: "100vh" }} />
+        </div>
+        <button className="logout-button" onClick={handleLogout}>
+          Logout
+        </button>
+        {profile && (
+          <div>
+            <p>Welcome, {profile.name}!</p>
+            {/* ... other profile information ... */}
+          </div>
+        )}
+      </div>
+    </>
+  );
+};
 
 export default App;

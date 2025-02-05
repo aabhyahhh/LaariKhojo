@@ -1,5 +1,6 @@
 import { useState } from "react";
 import "./Login.css";
+import { Link } from "react-router-dom";
 
 interface LoginProps {
   onLoginSuccess?: (token: string) => void;
@@ -87,10 +88,11 @@ function Login({ onLoginSuccess }: LoginProps) {
           </button>
         </form>
 
-        <div className="signup-link">
-          <p>
-            Don't have an account? <a href="#">Sign up</a>
-          </p>
+        <div>
+          <p>Don't have an account?</p>
+          <span className="line">
+            <Link to="/register">Sign Up</Link> {/* Use Link instead of a */}
+          </span>
         </div>
       </div>
     </div>
