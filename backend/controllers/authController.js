@@ -30,16 +30,13 @@ const registerUser = async (req, res) => {
       });
     }
 
-    const isExistContactNumber = await User.findOne({ contactNumber });
-    const isExistMapsLink = await User.findOne({ mapsLink });
-
-    if (!isExistContactNumber) {
+    if (!contactNumber) {
       return res.status(409).json({
         success: false,
         msg: "Please fill Contact details for your Laari!",
       });
     }
-    if (!isExistMapsLink) {
+    if (!mapsLink) {
       return res.status(409).json({
         success: false,
         msg: "Please fill Location link for your Laari!",
@@ -157,6 +154,7 @@ const getProfile = async (req, res) => {
       msg: "Laari Data",
       data: userData,
     });
+
   } catch (error) {
     return res.status(500).json({
       success: false,
@@ -165,6 +163,7 @@ const getProfile = async (req, res) => {
     });
   }
 };
+
 
 module.exports = {
   registerUser,

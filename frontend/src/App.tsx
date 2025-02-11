@@ -4,6 +4,7 @@ import L from "leaflet";
 import io, { Socket } from "socket.io-client";
 import "leaflet/dist/leaflet.css";
 import "./App.css";
+import Header from './components/Header';
 import {
   BrowserRouter as Router,
   Routes,
@@ -12,6 +13,7 @@ import {
 } from "react-router-dom";
 import Login from "./components/Login";
 import Register from "./components/Register";
+import HomeScreen from "./components/HomeScreen";
 
 interface UserProfile {
   _id: string;
@@ -61,12 +63,12 @@ function App() {
       // Update marker popup if it exists
       if (markerRef.current) {
         const popupContent = `
-          <div>
-            <h3>Profile Data</h3>
-            <p>Name: ${data.data.name}</p>
-            <p>Ph: ${data.data.contactNumber}</p>
-            <p>Maps: ${data.data.mapsLink}</p>
-          </div>
+          <div style="font-family: Arial, sans-serif;">
+    <h3 style="font-weight: bold; margin-bottom: 5px;">Profile Data</h3>
+    <p><strong>Name:</strong> ${data.data.name}</p>
+    <p><strong>Ph:</strong> ${data.data.contactNumber}</p>
+    <p><strong>Maps:</strong> <a href="${data.data.mapsLink}" target="_blank" style="color: blue; text-decoration: underline;">View</a></p>
+  </div>
         `;
         markerRef.current.setPopupContent(popupContent);
         markerRef.current.openPopup();
@@ -126,7 +128,7 @@ function App() {
 
             markerRef.current = L.marker([latitude, longitude])
               .addTo(mapRef.current)
-              .bindPopup(popupContent)
+              .bindPopup(popupContent, {className:'custom-popup'})
               .openPopup();
           }
 
@@ -207,9 +209,10 @@ function App() {
 
   return (
     <Routes>
+      <Route path="/" element={<HomeScreen/>}/>
       {/* Main app content - redirect to login if not logged in */}
       <Route
-        path=""
+        path="/map"
         element={
           isLoggedIn ? (
             <MainAppContent
@@ -228,7 +231,7 @@ function App() {
         path="/login"
         element={
           isLoggedIn ? (
-            <Navigate to="/" />
+            <Navigate to="/map" />
           ) : (
             <Login onLoginSuccess={handleLoginSuccess} />
           )
@@ -253,15 +256,16 @@ const MainAppContent = ({
   handleLogout: () => void;
   mapRef: React.RefObject<LeafletMap | null>;
 }) => {
+
+  
+
   return (
     <>
+    <Header isLoggedIn={!!profile} onLogout={ handleLogout } />
       <div className="relative">
         <div className="mapContainer">
           <div id="map" style={{ width: "100%", height: "100vh" }} />
         </div>
-        <button className="logout-button" onClick={handleLogout}>
-          Logout
-        </button>
         {profile && (
           <div>
             <p>Welcome, {profile.name}!</p>

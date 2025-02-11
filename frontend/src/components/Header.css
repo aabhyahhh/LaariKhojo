@@ -1,0 +1,108 @@
+/* Header container styles */
+header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background-color: white;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    z-index: 50;
+    height: 64px; /* Fixed height for consistency */
+  }
+  
+  /* Inner container styles */
+  header > div {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 0.75rem 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  /* Logo text styles */
+  header .text-xl {
+    font-weight: bold;
+    font-size: 1.25rem;
+    color: #1a1a1a;
+    transition: color 0.2s ease;
+  }
+  
+  header .text-xl:hover {
+    color: #3b82f6; /* Blue color on hover */
+  }
+  
+  /* Button styles */
+  header button {
+    padding: 0.5rem 1rem;
+    border-radius: 0.375rem;
+    background-color: #fa5e51;
+    color: white;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    border: none;
+    outline: none;
+  }
+  
+  header button:hover {
+    background-color: #fa5546;
+    transform: translateY(-1px);
+  }
+  
+  header button:active {
+    transform: translateY(0);
+  }
+  
+  /* Responsive styles */
+  @media (max-width: 640px) {
+    header > div {
+      padding: 0.5rem 1rem;
+    }
+  
+    header .text-xl {
+      font-size: 1.125rem;
+    }
+  
+    header button {
+      padding: 0.375rem 0.75rem;
+      font-size: 0.875rem;
+    }
+  }
+  
+  /* Animation for login/logout button text change */
+  header button {
+    position: relative;
+    overflow: hidden;
+  }
+  
+  /* Add spacing below header to prevent content overlap */
+  header + * {
+    margin-top: 64px; /* Same as header height */
+  }
+  
+  /* Optional: Add a subtle gradient background on hover */
+  header:hover {
+    background: linear-gradient(to bottom, white, #fafafa);
+  }
+  
+  /* Focus styles for accessibility */
+  header button:focus {
+    outline: 2px solid #fa5e51;
+    outline-offset: 2px;
+  }
+  
+  /* Dark mode support (optional) */
+  @media (prefers-color-scheme: dark) {
+    header {
+      background-color: #1a1a1a;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+  
+    header .text-xl {
+      color: white;
+    }
+  
+    header:hover {
+      background: linear-gradient(to bottom, #1a1a1a, #262626);
+    }
+  }

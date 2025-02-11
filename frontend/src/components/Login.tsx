@@ -1,6 +1,7 @@
 import { useState } from "react";
 import "./Login.css";
 import { Link } from "react-router-dom";
+import Header from "./Header";
 
 interface LoginProps {
   onLoginSuccess?: (token: string) => void;
@@ -43,7 +44,15 @@ function Login({ onLoginSuccess }: LoginProps) {
     }
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem("token"); // Remove authentication token
+    window.location.reload(); // Reload or navigate to login page
+  };
+
   return (
+    <>
+    <Header isLoggedIn={false} onLogout={ handleLogout } />
+
     <div className="login-container">
       <div className="login-card">
         <div className="login-header">
@@ -88,14 +97,14 @@ function Login({ onLoginSuccess }: LoginProps) {
           </button>
         </form>
 
-        <div>
-          <p>Don't have an account?</p>
-          <span className="line">
+        <div className="login-link">
+          <p>Don't have an account?
             <Link to="/register">Sign Up</Link> {/* Use Link instead of a */}
-          </span>
+          </p>
         </div>
       </div>
     </div>
+    </>
   );
 }
 

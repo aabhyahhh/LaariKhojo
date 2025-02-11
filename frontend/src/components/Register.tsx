@@ -8,9 +8,13 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import axios, { AxiosResponse, AxiosError } from "axios";
 import { Link } from "react-router-dom";
 import "./Register.css";
+import Header from './Header'; 
 
-const USER_REGEX = /^[A-z][A-z0-9-_]{3,23}$/;
-const PWD_REGEX = /^[A-z][A-z0-9-_]{3,23}$/;
+const USER_REGEX = /^[A-Za-z0-9][A-Za-z0-9-_ ]{2,}$/;
+const PWD_REGEX = /^[A-Za-z0-9].{2,}$/;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PHONE_REGEX = /^(\+91[\-\s]?)?[0]?(91)?[789]\d{9}$/;
+const MAPS_REGEX = /^https:\/\/(goo\.gl|maps\.google\.com|maps\.app\.goo\.gl).+/i;
 const REGISTER_URL = "http://localhost:3000/api/register";
 
 interface RegisterProps {
@@ -32,6 +36,18 @@ const Register: React.FC<RegisterProps> = ({ onRegisterSuccess }) => {
   const [matchPwd, setMatchPwd] = useState<string>("");
   const [validMatch, setValidMatch] = useState<boolean>(false);
   const [matchFocus, setMatchFocus] = useState<boolean>(false);
+
+  const [email, setEmail] = useState<string>("");
+  const [validEmail, setValidEmail] = useState<boolean>(false);
+  const [emailFocus, setEmailFocus] = useState<boolean>(false);
+
+  const [contactNumber, setContactNumber] = useState<string>("");
+  const [validContactNumber, setValidContactNumber] = useState<boolean>(false);
+  const [contactNumberFocus, setContactNumberFocus] = useState<boolean>(false);
+
+  const [mapsLink, setMapsLink] = useState<string>("");
+  const [validMapsLink, setValidMapsLink] = useState<boolean>(false);
+  const [mapsLinkFocus, setMapsLinkFocus] = useState<boolean>(false);
 
   const [errMsg, setErrMsg] = useState<string>("");
   const [success, setSuccess] = useState<boolean>(false);
@@ -55,19 +71,40 @@ const Register: React.FC<RegisterProps> = ({ onRegisterSuccess }) => {
     setErrMsg("");
   }, [user, pwd, matchPwd]);
 
+  useEffect(() => {
+    setValidEmail(EMAIL_REGEX.test(email));
+  }, [email]);
+
+  useEffect(() => {
+    setValidContactNumber(PHONE_REGEX.test(contactNumber));
+  }, [contactNumber]);
+
+  useEffect(() => {
+    setValidMapsLink(MAPS_REGEX.test(mapsLink));
+  }, [mapsLink]);
+
+  useEffect(() => {
+    setErrMsg("");
+  }, [user, pwd, matchPwd, email, contactNumber, mapsLink]);
+
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // if button enabled with JS hack
+
+    // Validate all fields
     const v1 = USER_REGEX.test(user);
     const v2 = PWD_REGEX.test(pwd);
-    if (!v1 || !v2) {
+    const v3 = EMAIL_REGEX.test(email);
+    const v4 = PHONE_REGEX.test(contactNumber);
+    const v5 = MAPS_REGEX.test(mapsLink);
+
+    if (!v1 || !v2 || !v3 || !v4 || !v5) {
       setErrMsg("Invalid Entry");
       return;
     }
     try {
       const response: AxiosResponse<RegisterProps> = await axios.post(
         REGISTER_URL,
-        JSON.stringify({ user, pwd }),
+        JSON.stringify({ name: user, password: pwd, email, contactNumber, mapsLink }),
         {
           headers: { "Content-Type": "application/json" },
           withCredentials: true,
@@ -83,6 +120,9 @@ const Register: React.FC<RegisterProps> = ({ onRegisterSuccess }) => {
       setUser("");
       setPwd("");
       setMatchPwd("");
+      setEmail("");
+      setContactNumber("");
+      setMapsLink("");
     } catch (err) {
       const error = err as AxiosError;
       if (!error?.response) {
@@ -96,7 +136,14 @@ const Register: React.FC<RegisterProps> = ({ onRegisterSuccess }) => {
     }
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem("token"); // Remove authentication token
+    window.location.reload(); // Reload or navigate to login page
+  };
+
   return (
+<>
+<Header isLoggedIn={false} onLogout={ handleLogout } />
     <div className="register-container">
       <div className="register-card">
         {success ? (
@@ -148,9 +195,109 @@ const Register: React.FC<RegisterProps> = ({ onRegisterSuccess }) => {
                 />
                 {userFocus && user && !validName && (
                   <p className="input-requirements">
-                    <FontAwesomeIcon icon={faInfoCircle} />4 to 24 characters.
-                    Must begin with a letter. Letters, numbers, underscores,
-                    hyphens allowed.
+                    <FontAwesomeIcon icon={faInfoCircle} />
+                    Vendor stall name must start with a letter or number and be
+                    at least 3 characters long. It can contain letters, numbers,
+                    spaces, hyphens, and underscores.
+                  </p>
+                )}
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="email">
+                  Email
+                  {email && (
+                    <span className="validation-icon">
+                      <FontAwesomeIcon
+                        icon={validEmail ? faCheck : faTimes}
+                        className={validEmail ? "valid-icon" : "invalid-icon"}
+                      />
+                    </span>
+                  )}
+                </label>
+                <input
+                  type="email"
+                  id="email"
+                  onChange={(e) => setEmail(e.target.value)}
+                  value={email}
+                  required
+                  aria-invalid={validEmail ? "false" : "true"}
+                  aria-describedby="emailnote"
+                  onFocus={() => setEmailFocus(true)}
+                  onBlur={() => setEmailFocus(false)}
+                />
+                {emailFocus && email && !validEmail && (
+                  <p className="input-requirements">
+                    <FontAwesomeIcon icon={faInfoCircle} />
+                    Please enter a valid email address.
+                  </p>
+                )}
+              </div>
+
+              {/* New contact number field */}
+              <div className="form-group">
+                <label htmlFor="contactNumber">
+                  Contact Number
+                  {contactNumber && (
+                    <span className="validation-icon">
+                      <FontAwesomeIcon
+                        icon={validContactNumber ? faCheck : faTimes}
+                        className={
+                          validContactNumber ? "valid-icon" : "invalid-icon"
+                        }
+                      />
+                    </span>
+                  )}
+                </label>
+                <input
+                  type="tel"
+                  id="contactNumber"
+                  onChange={(e) => setContactNumber(e.target.value)}
+                  value={contactNumber}
+                  required
+                  aria-invalid={validContactNumber ? "false" : "true"}
+                  aria-describedby="phonenote"
+                  onFocus={() => setContactNumberFocus(true)}
+                  onBlur={() => setContactNumberFocus(false)}
+                />
+                {contactNumberFocus && contactNumber && !validContactNumber && (
+                  <p className="input-requirements">
+                    <FontAwesomeIcon icon={faInfoCircle} />
+                    Please enter a valid Indian mobile number.
+                  </p>
+                )}
+              </div>
+
+              {/* New maps link field */}
+              <div className="form-group">
+                <label htmlFor="mapsLink">
+                  Google Maps Link
+                  {mapsLink && (
+                    <span className="validation-icon">
+                      <FontAwesomeIcon
+                        icon={validMapsLink ? faCheck : faTimes}
+                        className={
+                          validMapsLink ? "valid-icon" : "invalid-icon"
+                        }
+                      />
+                    </span>
+                  )}
+                </label>
+                <input
+                  type="url"
+                  id="mapsLink"
+                  onChange={(e) => setMapsLink(e.target.value)}
+                  value={mapsLink}
+                  required
+                  aria-invalid={validMapsLink ? "false" : "true"}
+                  aria-describedby="mapsnote"
+                  onFocus={() => setMapsLinkFocus(true)}
+                  onBlur={() => setMapsLinkFocus(false)}
+                />
+                {mapsLinkFocus && mapsLink && !validMapsLink && (
+                  <p className="input-requirements">
+                    <FontAwesomeIcon icon={faInfoCircle} />
+                    Please enter a valid Google Maps link.
                   </p>
                 )}
               </div>
@@ -180,9 +327,9 @@ const Register: React.FC<RegisterProps> = ({ onRegisterSuccess }) => {
                 />
                 {pwdFocus && !validPwd && (
                   <p className="input-requirements">
-                    <FontAwesomeIcon icon={faInfoCircle} />4 to 24 characters.
-                    Must begin with a letter. Letters, numbers, underscores,
-                    hyphens allowed.
+                    <FontAwesomeIcon icon={faInfoCircle} />
+                    Password must start with a letter or number and be at least
+                    3 characters long
                   </p>
                 )}
               </div>
@@ -235,6 +382,7 @@ const Register: React.FC<RegisterProps> = ({ onRegisterSuccess }) => {
         )}
       </div>
     </div>
+    </>
   );
 };
 

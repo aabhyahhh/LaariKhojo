@@ -2,11 +2,11 @@
 
 .register-container {
   min-height: 100vh;
+  min-width: 100vw; 
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 20px;
+  background: linear-gradient(135deg, #FF6B6B 0%, #FFB347 100%);
 }
 
 .register-card {
