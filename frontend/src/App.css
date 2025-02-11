@@ -9,7 +9,6 @@
   height: 100vh;
   justify-content: center;
   align-items: center;
-  padding: 10px 20px;
   position: absolute;
   background-color: rgb(255, 187, 187);
 }
@@ -28,4 +27,25 @@
   border-radius: 5px;
   cursor: pointer;
   z-index: 1000;
+}
+
+.custom-popup .leaflet-popup-content-wrapper {
+  background-color: rgb(231, 147, 147); /* Dark blue background */
+  color: white; /* White text */
+  border-radius: 8px; /* Rounded corners */
+  padding: 10px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.custom-popup .leaflet-popup-tip {
+  background-color: #1e293b; /* Same background color for the arrow */
+}
+
+.custom-popup a {
+  color: #ffcc00; /* Custom link color */
+  text-decoration: none;
+}
+
+.custom-popup a:hover {
+  text-decoration: underline;
 }

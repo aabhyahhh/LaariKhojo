@@ -4,7 +4,7 @@ import L from "leaflet";
 import io, { Socket } from "socket.io-client";
 import "leaflet/dist/leaflet.css";
 import "../App.css";
-import markerIcon from "./assets/download.png"
+import markerIcon from "./assets/download.png";
 import Login from "./Login";
 
 interface UserProfile {
@@ -103,31 +103,33 @@ function MapComponent() {
             `
               : "No profile data available";
             !profile && fetchProfileData();
-            
+
             const customIcon = L.icon({
               iconUrl: markerIcon, // Replace with your icon path
               iconSize: [30, 30], // Width, Height (Adjust as needed)
               iconAnchor: [15, 30], // Center the icon correctly
               popupAnchor: [0, -30], // Adjust popup position
             });
-            
-            markerRef.current = L.marker([latitude, longitude], { icon: customIcon })
+
+            markerRef.current = L.marker([latitude, longitude], {
+              icon: customIcon,
+            })
               .addTo(mapRef.current)
               .bindPopup(popupContent)
               .openPopup();
 
-          // Center map on marker
-          mapRef.current.setView([latitude, longitude], 17);
+            // Center map on marker
+            mapRef.current.setView([latitude, longitude], 17);
 
-          // Emit location to server if socket is connected
-          if (socketRef.current?.connected) {
-            socketRef.current.emit("send-location", {
-              latitude,
-              longitude,
-              userId: profile?._id,
-            });
+            // Emit location to server if socket is connected
+            if (socketRef.current?.connected) {
+              socketRef.current.emit("send-location", {
+                latitude,
+                longitude,
+                userId: profile?._id,
+              });
+            }
           }
-        }
         },
         (error) => {
           console.error("Error getting location:", error);

@@ -19,7 +19,7 @@ const registerUser = async (req, res) => {
       });
     }
 
-    const { name, email, password, contactNumber, mapsLink} = req.body;
+    const { name, email, password, contactNumber, mapsLink } = req.body;
 
     const isExistEmail = await User.findOne({ email });
 
@@ -30,16 +30,13 @@ const registerUser = async (req, res) => {
       });
     }
 
-    const isExistContactNumber = await User.findOne({ contactNumber });
-    const isExistMapsLink = await User.findOne({ mapsLink });
-
-    if (!isExistContactNumber) {
+    if (!contactNumber) {
       return res.status(409).json({
         success: false,
         msg: "Please fill Contact details for your Laari!",
       });
     }
-    if (!isExistMapsLink) {
+    if (!mapsLink) {
       return res.status(409).json({
         success: false,
         msg: "Please fill Location link for your Laari!",
