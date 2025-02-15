@@ -19,7 +19,30 @@ const registerUser = async (req, res) => {
       });
     }
 
-    const { name, email, password, contactNumber, mapsLink } = req.body;
+    
+      const { name, email, password, contactNumber, mapsLink } = req.body;
+  
+      if (!contactNumber || !mapsLink) {
+        return res.status(409).json({
+          success: false,
+          msg: "Contact Number & Location are required!",
+        });
+      }
+  
+      // Validate & Extract Coordinates from mapsLink
+      const mapsRegex = /@([-+]?\d*\.\d+),([-+]?\d*\.\d+)/;
+      const match = mapsLink.match(mapsRegex);
+  
+      if (!match) {
+        return res.status(400).json({
+          success: false,
+          msg: "Invalid maps link! Please use a valid Google Maps link.",
+        });
+      }
+  
+      const latitude = parseFloat(match[1]);
+      const longitude = parseFloat(match[2]);
+  
 
     const isExistEmail = await User.findOne({ email });
 
@@ -30,19 +53,6 @@ const registerUser = async (req, res) => {
       });
     }
 
-    if (!contactNumber) {
-      return res.status(409).json({
-        success: false,
-        msg: "Please fill Contact details for your Laari!",
-      });
-    }
-    if (!mapsLink) {
-      return res.status(409).json({
-        success: false,
-        msg: "Please fill Location link for your Laari!",
-      });
-    }
-
     const hashedPassword = await bcrypt.hash(password, 10);
     const user = new User({
       name,
@@ -50,6 +60,8 @@ const registerUser = async (req, res) => {
       contactNumber,
       mapsLink,
       password: hashedPassword,
+      latitude, 
+      longitude
     });
 
     const userData = await user.save();
@@ -64,7 +76,7 @@ const registerUser = async (req, res) => {
 
     return res.status(400).json({
       success: false,
-      msg: "Registration Error",
+      msg: "Error registering user",
       error: error.message,
     });
   }
@@ -164,9 +176,24 @@ const getProfile = async (req, res) => {
   }
 };
 
+//////////////////   GET ALL USERS    //////////////////////
+const getAllUsers = async (req, res) => {
+  try {
+    const users = await User.find({}, { password: 0 }); // Exclude passwords
+    return res.status(200).json({
+      success: true,
+      msg: "All Laari Vendors",
+      data: users,
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, msg: "Error fetching users", error: error.message });
+  }
+};
+
 
 module.exports = {
   registerUser,
   loginUser,
   getProfile,
+  getAllUsers
 };

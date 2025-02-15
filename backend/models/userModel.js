@@ -21,9 +21,11 @@ const userSchema = new mongoose.Schema({
     mapsLink:{
         type: String, 
     },
-    role:{
-        type: Number,
-        default: 0 //0 -> Normal user, 1-> admin, 2-> subadmin, 3 -> editor
+    latitude:{
+        type: Number, 
+    }, 
+    longitude: {
+        type: Number, 
     }
 
 },{timestamps: true}

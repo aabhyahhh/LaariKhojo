@@ -4,13 +4,14 @@ const express = require("express");
 const path = require("path");
 const mongoose = require("mongoose");
 const http = require("http");
-const socketio = require("socket.io");
 
 const authRoutes = require("./routes/authRoute");
 
 const allowedOrigin = ["http://localhost:5173"];
 
 const app = express();
+app.use(cors());
+const PORT = 3000;
 app.use(express.json()); // <-- Important: This enables JSON body parsing
 app.use(express.urlencoded({ extended: true }));
 app.use(
@@ -20,13 +21,6 @@ app.use(
   })
 );
 const server = http.createServer(app);
-
-const io = socketio(server, {
-  cors: {
-    origin: "https://localhost:5173",
-    methods: ["GET", "POST"],
-  },
-});
 
 // Apply conditional JSON parsing middleware
 app.use((req, res, next) => {
@@ -61,23 +55,27 @@ mongoose.connection.on("error", (err) => {
 
 app.use("/api", authRoutes);
 
-// Socket.IO Configuration
-io.on("connection", (socket) => {
-  console.log(`User connected: ${socket.id}`);
+app.get("/api/expand-url", async (req, res) => {
+  const { url } = req.query;
+  if (!url) return res.status(400).json({ error: "No URL provided" });
 
-  // Receive location from clients
-  socket.on("send-location", (data) => {
-    io.emit("receive-location", { id: socket.id, ...data });
-  });
-
-  // Handle disconnection
-  socket.on("disconnect", () => {
-    io.emit("user-disconnected", socket.id);
-  });
+  try {
+    const response = await axios.head(url, { maxRedirects: 5 });
+    res.json({ expandedUrl: response.request.res.responseUrl });
+  } catch (error) {
+    console.error("Error expanding URL:", error);
+    res.status(500).json({ error: "Failed to expand URL" });
+  }
 });
 
-// Start the server
-const port = process.env.SERVER_PORT || 3000;
-server.listen(port, () => {
-  console.log(`Server is running on Port: ${port}`);
+// Add this endpoint to your Express server
+app.get("/api/vendors", async (req, res) => {
+  try {
+    const vendors = await VendorModel.find({});
+    res.json({ data: vendors });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch vendors" });
+  }
 });
+
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

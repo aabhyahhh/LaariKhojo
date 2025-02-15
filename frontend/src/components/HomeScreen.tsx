@@ -12,15 +12,9 @@ const HomeScreen: React.FC = () => {
         <div className="space-y-4">
           <button 
             className="w-full text-lg py-4 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition"
-            onClick={() => navigate('/user-map')}
+            onClick={() => navigate('/map')}
           >
-            View as User
-          </button>
-          <button 
-            className="w-full text-lg py-4 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-100 transition"
-            onClick={() => navigate('/login')}
-          >
-            Login as Vendor
+            Explore now!
           </button>
         </div>
       </div>
