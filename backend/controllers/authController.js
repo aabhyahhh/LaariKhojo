@@ -20,12 +20,12 @@ const registerUser = async (req, res) => {
     }
 
     
-      const { name, email, password, contactNumber, mapsLink } = req.body;
+      const { name, email, password, contactNumber, mapsLink, operatingHours} = req.body;
   
-      if (!contactNumber || !mapsLink) {
+      if (!contactNumber || !mapsLink || !operatingHours) {
         return res.status(409).json({
           success: false,
-          msg: "Contact Number & Location are required!",
+          msg: "Contact Number, Operating Hours & Location are required!",
         });
       }
   
@@ -61,7 +61,8 @@ const registerUser = async (req, res) => {
       mapsLink,
       password: hashedPassword,
       latitude, 
-      longitude
+      longitude,
+      operatingHours
     });
 
     const userData = await user.save();

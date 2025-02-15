@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const operatingHoursSchema = require('./operatingHoursModel').schema;
 
 const userSchema = new mongoose.Schema({
 
@@ -17,16 +18,16 @@ const userSchema = new mongoose.Schema({
     },
     contactNumber:{
         type: String, 
+        required: true
     },
     mapsLink:{
         type: String, 
+        required: true
     },
-    latitude:{
-        type: Number, 
-    }, 
-    longitude: {
-        type: Number, 
-    }
+    operatingHours: {
+        type: operatingHoursSchema,
+        required: true
+      }
 
 },{timestamps: true}
 );
