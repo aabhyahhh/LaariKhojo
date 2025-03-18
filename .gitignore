@@ -29,3 +29,4 @@ dist-ssr
 
 # Ignore environment variables
 .env*
+frontend/src/components/HomeScreen.tsx

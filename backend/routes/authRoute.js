@@ -17,4 +17,5 @@ router.post("/login", loginValidator, authController.loginUser);
 router.get("/profile", auth, authController.getProfile);
 
 router.get("/all-users", authController.getAllUsers);
+router.put("/update-profile",auth, authController.updateProfile);
 module.exports = router;

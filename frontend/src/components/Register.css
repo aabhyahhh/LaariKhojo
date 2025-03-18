@@ -74,7 +74,7 @@
   font-size: 14px;
   font-weight: 500;
   display: flex;
-  justify-content: space-between;
+  justify-content: left;
   align-items: center;
 }
 
@@ -179,6 +179,14 @@
 .success-message a:hover {
   text-decoration: underline;
 }
+
+.day-checkbox {
+  display: flex;
+  justify-content: left; 
+  align-items: center;
+  width: 100%;
+}
+
 
 /* Responsive adjustments */
 @media (max-width: 640px) {
