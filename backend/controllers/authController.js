@@ -191,10 +191,79 @@ const getAllUsers = async (req, res) => {
   }
 };
 
+///////////////////           EDIT USER PROFILE            ///////////////////////
+const updateProfile = async (req, res) => {
+  try {
+    // Check if req.user exists
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        msg: "Authentication required. Please log in.",
+      });
+    }
+    
+    const userId = req.user._id; // Get user ID from the authenticated request
+    const { name, contactNumber, mapsLink, operatingHours } = req.body;
+
+    // Check if the user exists
+    let user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        msg: "User not found",
+      });
+    }
+
+    // Validate & Extract Coordinates if mapsLink is updated
+    let latitude = user.latitude;
+    let longitude = user.longitude;
+
+    if (mapsLink && mapsLink !== user.mapsLink) {
+      const mapsRegex = /@([-+]?\d*\.\d+),([-+]?\d*\.\d+)/;
+      const match = mapsLink.match(mapsRegex);
+
+      if (!match) {
+        return res.status(400).json({
+          success: false,
+          msg: "Invalid maps link! Please use a valid Google Maps link.",
+        });
+      }
+
+      latitude = parseFloat(match[1]);
+      longitude = parseFloat(match[2]);
+    }
+
+    // Update user details
+    user.name = name || user.name;
+    user.contactNumber = contactNumber || user.contactNumber;
+    user.mapsLink = mapsLink || user.mapsLink;
+    user.latitude = latitude;
+    user.longitude = longitude;
+    user.operatingHours = operatingHours || user.operatingHours;
+
+    // Save the updated user data
+    const updatedUser = await user.save();
+
+    return res.status(200).json({
+      success: true,
+      msg: "Profile updated successfully!",
+      data: updatedUser,
+    });
+  } catch (error) {
+    console.error("Profile update error:", error);
+    return res.status(500).json({
+      success: false,
+      msg: "Error updating profile",
+      error: error.message,
+    });
+  }
+};
+
 
 module.exports = {
   registerUser,
   loginUser,
   getProfile,
-  getAllUsers
+  getAllUsers, 
+  updateProfile 
 };

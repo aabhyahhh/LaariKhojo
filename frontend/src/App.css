@@ -30,7 +30,7 @@
 }
 
 .custom-popup .leaflet-popup-content-wrapper {
-  background-color: rgb(231, 147, 147); /* Dark blue background */
+  background-color: rgb(231, 147, 147); 
   color: white; /* White text */
   border-radius: 8px; /* Rounded corners */
   padding: 10px;

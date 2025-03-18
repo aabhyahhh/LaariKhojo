@@ -36,7 +36,6 @@ mongoose
   .connect(
     process.env.MONGO_URI || "mongodb://127.0.0.1:27017/user-roles-perm",
     {
-      useNewUrlParser: true,
       useUnifiedTopology: true,
       serverSelectionTimeoutMS: 5000,
       socketTimeoutMS: 45000,
@@ -79,3 +78,7 @@ app.get("/api/vendors", async (req, res) => {
 });
 
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+//for user route(whatsapp)
+const userRoute = require("./routes/userRoute"); 
+app.use('/api', userRoute);

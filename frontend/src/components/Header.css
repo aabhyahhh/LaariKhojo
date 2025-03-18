@@ -4,7 +4,8 @@ header {
     top: 0;
     left: 0;
     right: 0;
-    background-color: white;
+    background: linear-gradient(to bottom, #0E4C5A, #48AFC7);
+    transition: 0.5s ease-in-out;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     z-index: 50;
     height: 64px; /* Fixed height for consistency */
@@ -16,7 +17,6 @@ header {
     margin: 0 auto;
     padding: 0.75rem 1rem;
     display: flex;
-    justify-content: space-between;
     align-items: center;
   }
   
@@ -80,22 +80,66 @@ header {
     margin-top: 64px; /* Same as header height */
   }
   
-  /* Optional: Add a subtle gradient background on hover */
-  header:hover {
-    background: linear-gradient(to bottom, white, #fafafa);
-  }
   
   /* Focus styles for accessibility */
   header button:focus {
     outline: 2px solid #fa5e51;
     outline-offset: 2px;
   }
+
+  .left-header{
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-family: 'Helvetica', 'sans-serif';
+    font-size: 30px;
+  }
+
+  .left-header:hover{
+    color: #d8d6d6;
+    box-shadow: #ddd;
+    transform : background-color 0.3s ease, 0.2s ease;
+  }
+
+  .right-header{
+    position: fixed;
+    left: 0;
+    right: 0;
+    top: 0;
+    display: flex;
+    justify-content: right;
+  }
+
+  .user-profile {
+    margin-left: 10px;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border-radius: 50%;
+    background-color: #f0f0f0; /* Light gray background */
+    transition: background-color 0.3s ease, transform 0.2s ease;
+  }
+  
+  .user-profile svg {
+    width: 24px;
+    height: 24px;
+    fill: #333; /* Dark gray icon color */
+  }
+  
+  .user-profile:hover {
+    background-color: #ddd; /* Slightly darker on hover */
+    transform: scale(1.1);
+  }
   
   /* Dark mode support (optional) */
   @media (prefers-color-scheme: dark) {
     header {
-      background-color: #1a1a1a;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+      background: linear-gradient(to bottom,#0E4C5A, #48AFC7);
+      transition: 0.5s ease-in;
     }
   
     header .text-xl {
@@ -103,6 +147,7 @@ header {
     }
   
     header:hover {
-      background: linear-gradient(to bottom, #1a1a1a, #262626);
+      background: linear-gradient(to bottom,#0a3a44, #3b92a5);
+      transition: 0.5s ease-in-out;
     }
   }

@@ -17,7 +17,7 @@ function Login({ onLoginSuccess }: LoginProps) {
     setError(null);
 
     try {
-      const response = await fetch("http://localhost:3000/api/login", {
+      const response = await fetch(`${import.meta.env.VITE_REACT_APP_BASEURL}/api/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
