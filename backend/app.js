@@ -77,6 +77,12 @@ app.get("/api/vendors", async (req, res) => {
   }
 });
 
+app.get("/", (req, res) => {
+  res.send("Hello from Express on Vercel!");
+});
+
+const app = require("../server");
+
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 
 //for user route(whatsapp)
