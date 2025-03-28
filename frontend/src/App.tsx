@@ -5,7 +5,7 @@ import Register from "./components/Register";
 import UpdateProfile from "./components/UpdateProfile";
 import Login from "./components/Login";
 import laari from "./assets/laari.png"
-import { useEffect, useRef, useState } from "react";
+import { JSX, useEffect, useRef, useState } from "react";
 import type { Map as LeafletMap } from "leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
