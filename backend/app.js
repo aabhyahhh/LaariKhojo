@@ -12,7 +12,7 @@ const allowedOrigin = ["http://localhost:5173"];
 
 const app = express();
 app.use(cors());
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 app.use(express.json()); // <-- Important: This enables JSON body parsing
 app.use(express.urlencoded({ extended: true }));
 app.use(
@@ -38,7 +38,7 @@ console.log("9");
 // MongoDB Connection
 mongoose
   .connect(
-    process.env.MONGO_URI || "mongodb://127.0.0.1:27017/user-roles-perm",
+    process.env.MONGO_URI || "mongodb+srv://abhayacibos:laarikhojo@cluster0.79oqwht.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0",
     {
       useUnifiedTopology: true,
       serverSelectionTimeoutMS: 5000,
