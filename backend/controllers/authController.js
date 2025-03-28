@@ -53,7 +53,7 @@ const registerUser = async (req, res) => {
       });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hashSync(password, 10);
     const user = new User({
       name,
       email,
@@ -120,7 +120,7 @@ const loginUser = async (req, res) => {
     }
 
     //matching password with bcrypt
-    const isPasswordMatch = await bcrypt.compare(password, userData.password);
+    const isPasswordMatch = await bcrypt.compareSync(password, userData.password);
 
     if (!isPasswordMatch) {
       return res.status(400).json({
