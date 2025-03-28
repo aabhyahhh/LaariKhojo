@@ -38,7 +38,7 @@ console.log("9");
 // MongoDB Connection
 mongoose
   .connect(
-    process.env.MONGO_URI || "mongodb+srv://abhayacibos:laarikhojo@cluster0.79oqwht.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0",
+    process.env.MONGO_URI || "mongodb+srv://abhayacibos:jtBZ0FOsJQL3bJKI@cluster0.dztbn64.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0",
     {
       useUnifiedTopology: true,
       serverSelectionTimeoutMS: 5000,
@@ -94,7 +94,7 @@ console.log("13");
 
 
 app.get("/", (req, res) => {
-  res.send("Hello from Express on Vercel!");
+  res.send("Hello from Express on Render!");
 });
 
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
