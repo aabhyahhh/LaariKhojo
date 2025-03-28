@@ -5,7 +5,7 @@ const path = require("path");
 const mongoose = require("mongoose");
 const http = require("http");
 
-const authRoutes = require("./routes/authRoute");
+const authRoutes = require("./api/authRoute");
 
 const allowedOrigin = ["http://localhost:5173"];
 

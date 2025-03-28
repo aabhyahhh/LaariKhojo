@@ -1,22 +1,39 @@
-const express = require('express');
-const router = express.Router();
-const { check } = require('express-validator');
-const registerUser = require('../controllers/authController'); // Assuming your controller is in a separate file 
+const { body, validationResult } = require('express-validator');
 
-
-exports.registerValidator = [
-    check('name', 'Name is required').not().isEmpty(),
-    check('email', 'Please include a valid email').isEmail().normalizeEmail({
+// Register Validator Middleware
+const registerValidator = [
+    body('name', 'Name is required').not().isEmpty(),
+    body('email', 'Please include a valid email').isEmail().normalizeEmail({
         gmail_remove_dots: true
     }),
-    check('password', 'Password is required').not().isEmpty(),
-    check('contactNumber', 'Enter valid 10-digit number').not().isEmpty(),
-    check('mapsLink', 'Enter the link for your Laari location').not().isEmpty(),
+    body('password', 'Password is required').not().isEmpty(),
+    body('contactNumber', 'Enter valid 10-digit number').not().isEmpty(),
+    body('mapsLink', 'Enter the link for your Laari location').not().isEmpty(),
 ];
 
-exports.loginValidator = [
-    check('email', 'Please include a valid email').isEmail().normalizeEmail({
+// Login Validator Middleware
+const loginValidator = [
+    body('email', 'Please include a valid email').isEmail().normalizeEmail({
         gmail_remove_dots: true
     }),
-    check('password', 'Password is required').not().isEmpty(),
+    body('password', 'Password is required').not().isEmpty(),
 ];
+
+// Validation Result Middleware
+const validateRequest = (req, res, next) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({
+            success: false,
+            msg: "Validation error",
+            errors: errors.array()
+        });
+    }
+    next();
+};
+
+module.exports = {
+    registerValidator,
+    loginValidator,
+    validateRequest
+};
