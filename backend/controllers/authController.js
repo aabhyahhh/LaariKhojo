@@ -5,6 +5,7 @@ const { validationResult } = require("express-validator");
 const bcrypt = require("bcrypt"); //decrypting password
 const jwt = require("jsonwebtoken");
 
+console.log("6");
 ///////////////////    registerUser      ///////////////////
 
 const registerUser = async (req, res) => {
@@ -83,6 +84,8 @@ const registerUser = async (req, res) => {
   }
 };
 
+console.log("7");
+
 ///////////////////    loginUser      ///////////////////
 
 //access token for jwtwebtoken
@@ -148,6 +151,9 @@ const loginUser = async (req, res) => {
     });
   }
 };
+
+console.log("8");
+
 
 ////////////////    User Profile     ///////////////////
 const getProfile = async (req, res) => {

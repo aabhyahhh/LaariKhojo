@@ -1,12 +1,14 @@
 {
   "version": 2,
-  "builds": [
-    { "src": "api/**/*.js", "use": "@vercel/node" }
-  ],
-  "routes": [
-    { "src": "/api/auth/(.*)", "dest": "api/auth/$1.js" }
-  ],
-  "installCommand": "npm install",
   "buildCommand": "echo 'No build needed'",
-  "outputDirectory": "."
+  "installCommand": "npm install",
+  "functions": {
+    "api/**/*.js": {
+      "runtime": "@vercel/node@2.6.9"
+    }
+  },
+  "routes": [
+    { "src": "/api/auth/(.*)", "dest": "api/auth/$1.js" },
+    { "src": "/api/(.*)", "dest": "api/$1.js" }
+  ]
 }
