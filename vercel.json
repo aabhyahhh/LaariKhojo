@@ -1,18 +1,12 @@
 {
   "version": 2,
   "builds": [
-    {
-      "src": "backend/app.js",
-      "use": "@vercel/node"
-    }
+    { "src": "api/**/*.js", "use": "@vercel/node" }
   ],
   "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "backend/app.js"
-    }
+    { "src": "/api/auth/(.*)", "dest": "api/auth/$1.js" }
   ],
-  "env": {
-    "NODE_ENV": "production"
-  }
+  "installCommand": "npm install",
+  "buildCommand": "echo 'No build needed'",
+  "outputDirectory": "."
 }
