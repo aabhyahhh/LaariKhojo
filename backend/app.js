@@ -5,6 +5,7 @@ const path = require("path");
 const mongoose = require("mongoose");
 const http = require("http");
 
+console.log("1");
 const authRoutes = require("./routes/authRoute");
 
 const allowedOrigin = ["http://localhost:5173"];
@@ -31,6 +32,9 @@ app.use((req, res, next) => {
   }
 });
 
+console.log("9");
+
+
 // MongoDB Connection
 mongoose
   .connect(
@@ -52,7 +56,13 @@ mongoose.connection.on("error", (err) => {
   console.error("MongoDB connection error:", err);
 });
 
+console.log("10");
+
+
 app.use("/api", authRoutes);
+
+console.log("11");
+
 
 app.get("/api/expand-url", async (req, res) => {
   const { url } = req.query;
@@ -67,6 +77,9 @@ app.get("/api/expand-url", async (req, res) => {
   }
 });
 
+console.log("12");
+
+
 // Add this endpoint to your Express server
 app.get("/api/vendors", async (req, res) => {
   try {
@@ -76,6 +89,9 @@ app.get("/api/vendors", async (req, res) => {
     res.status(500).json({ error: "Failed to fetch vendors" });
   }
 });
+
+console.log("13");
+
 
 app.get("/", (req, res) => {
   res.send("Hello from Express on Vercel!");
