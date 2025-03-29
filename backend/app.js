@@ -38,7 +38,7 @@ console.log("9");
 // MongoDB Connection
 mongoose
   .connect(
-    process.env.MONGO_URI || "mongodb+srv://abhayacibos:jtBZ0FOsJQL3bJKI@cluster0.dztbn64.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0",
+    process.env.MONGO_URI || "mongodb+srv://abhayacibos:xTn0keLzAmwkLQ4w@cluster0.dztbn64.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0",
     {
       useUnifiedTopology: true,
       serverSelectionTimeoutMS: 5000,
