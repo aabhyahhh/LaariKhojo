@@ -4,8 +4,8 @@ const express = require("express");
 const path = require("path");
 const mongoose = require("mongoose");
 const http = require("http");
+const MONGOURI = process.env.MONGOURI;
 
-console.log("1");
 const authRoutes = require("./routes/authRoute");
 
 const allowedOrigin = ["http://localhost:5173"];
@@ -32,36 +32,28 @@ app.use((req, res, next) => {
   }
 });
 
-console.log("9");
-
-
 // MongoDB Connection
-mongoose
-  .connect(
-    process.env.MONGO_URI || "mongodb+srv://abhayacibos:xTn0keLzAmwkLQ4w@cluster0.dztbn64.mongodb.net/test?retryWrites=true&w=majority&appName=Cluster0",
-    {
-      useUnifiedTopology: true,
-      serverSelectionTimeoutMS: 5000,
-      socketTimeoutMS: 45000,
-      family: 4,
-    }
-  )
-  .then(() => console.log("Connected to MongoDB"))
-  .catch((error) => {
-    console.error("MongoDB connection error:", error);
+mongoose.connect(MONGOURI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+}).then(() =>{
+  console.log("App connected to database");
+  app.listen(PORT, ()=>{
+    console.log(`App listening to: ${PORT}`);
   });
+}).catch((error)=>{
+  console.log(error)
+});
 
 // Add error handler
 mongoose.connection.on("error", (err) => {
   console.error("MongoDB connection error:", err);
 });
 
-console.log("10");
 
 
 app.use("/api", authRoutes);
 
-console.log("11");
 
 
 app.get("/api/expand-url", async (req, res) => {
@@ -77,8 +69,6 @@ app.get("/api/expand-url", async (req, res) => {
   }
 });
 
-console.log("12");
-
 
 // Add this endpoint to your Express server
 app.get("/api/vendors", async (req, res) => {
@@ -90,14 +80,9 @@ app.get("/api/vendors", async (req, res) => {
   }
 });
 
-console.log("13");
-
 
 app.get("/", (req, res) => {
   res.send("Hello from Express on Render!");
 });
-
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-
 
 module.exports = app;
