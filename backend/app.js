@@ -8,7 +8,7 @@ const MONGOURI = process.env.MONGOURI;
 
 const authRoutes = require("./routes/authRoute");
 
-const allowedOrigin = "http://localhost:5173";
+const allowedOrigin = "https://laarikhojo.in/";
 
 const app = express();
 

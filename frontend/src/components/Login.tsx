@@ -3,6 +3,8 @@ import { useNavigate, useLocation } from "react-router-dom";
 import "./Login.css";
 import { Link } from "react-router-dom";
 
+const API_URL = "https://laari-khojo-backend.onrender.com";
+
 interface LoginProps {
   onLoginSuccess?: (token: string) => void;
   redirectPath?: string;
@@ -23,7 +25,7 @@ const [error, setError] = useState<string | null>(null);
     setError(null);
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_REACT_APP_BASEURL}/api/login`, {
+      const response = await fetch(`${API_URL}/api/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

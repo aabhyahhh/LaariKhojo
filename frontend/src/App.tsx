@@ -11,6 +11,8 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "./App.css";
 
+const API_URL = "https://laari-khojo-backend.onrender.com";
+
 interface OperatingHours {
   openTime: string; // Format: "HH:mm" in 24-hour format
   closeTime: string; // Format: "HH:mm" in 24-hour format
@@ -179,10 +181,11 @@ function MapDisplay() {
     }
   };
 
+
   const fetchVendors = async () => {
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_REACT_APP_BASEURL}/api/all-users`
+        `${API_URL}/api/all-users`
       );
       if (!response.ok) {
         throw new Error("Failed to fetch vendors");
