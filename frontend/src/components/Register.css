@@ -16,6 +16,8 @@
   width: 100%;
   max-width: 400px;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  margin-top: 150px;
+
 }
 
 .register-header {
@@ -71,7 +73,7 @@
 
 .form-group label {
   color: #4a5568;
-  font-size: 14px;
+  font-size: 22px;
   font-weight: 500;
   display: flex;
   justify-content: left;
@@ -186,6 +188,8 @@
   align-items: center;
   width: 100%;
 }
+
+
 
 
 /* Responsive adjustments */

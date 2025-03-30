@@ -31,21 +31,43 @@
 
 .custom-popup .leaflet-popup-content-wrapper {
   background-color: rgb(231, 147, 147); 
-  color: white; /* White text */
-  border-radius: 8px; /* Rounded corners */
-  padding: 10px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  color: white;
+  border-radius: 12px;
+  padding: 12px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  max-width: 320px;
+  width: auto;
+  height: auto;
+  max-height: 250px;
+  overflow: hidden;
+}
+
+.custom-popup .leaflet-popup-content {
+  margin: 8px;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  width: auto !important;
 }
 
 .custom-popup .leaflet-popup-tip {
-  background-color: #1e293b; /* Same background color for the arrow */
+  background-color: rgb(231, 147, 147);
+}
+
+.custom-popup h3 {
+  margin-top: 0;
 }
 
 .custom-popup a {
-  color: #ffcc00; /* Custom link color */
-  text-decoration: none;
+  color: white;
+  font-weight: 500;
 }
 
-.custom-popup a:hover {
-  text-decoration: underline;
+/* Ensure the popup close button is visible */
+.custom-popup .leaflet-popup-close-button {
+  color: white;
+  opacity: 0.8;
+}
+
+.custom-popup .leaflet-popup-close-button:hover {
+  opacity: 1;
 }

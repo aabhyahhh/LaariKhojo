@@ -1,16 +1,22 @@
 import { useState } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import "./Login.css";
 import { Link } from "react-router-dom";
-import Header from "./Header";
 
 interface LoginProps {
   onLoginSuccess?: (token: string) => void;
+  redirectPath?: string;
 }
 
-function Login({ onLoginSuccess }: LoginProps) {
+function Login({ onLoginSuccess, redirectPath = "/update-profile" }: LoginProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+const [error, setError] = useState<string | null>(null);
+  const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Get the redirect path from location state if available
+  const from = location.state?.from?.pathname || redirectPath;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,27 +38,28 @@ function Login({ onLoginSuccess }: LoginProps) {
       }
 
       // Store token in localStorage
-      console.log("Storing token in localStorage" + data.accessToken);
+      console.log("Storing token in localStorage: " + data.accessToken);
       localStorage.setItem("token", data.accessToken);
 
       // Call the success callback if provided
       if (onLoginSuccess) {
         onLoginSuccess(data.accessToken);
+      } else {
+        // Only navigate directly if onLoginSuccess is not provided
+        navigate(from);
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Login failed");
-    }
-  };
 
-  const handleLogout = () => {
-    localStorage.removeItem("token"); // Remove authentication token
-    window.location.reload(); // Reload or navigate to login page
+    } catch (err) {
+      if (err instanceof Error) {
+        setError(err.message); // Explicitly setting a string
+      } else {
+        setError("Login failed"); // Fallback to a string error
+      }
+    }    
   };
 
   return (
     <>
-    <Header isLoggedIn={false} onLogout={ handleLogout } />
-
     <div className="login-container">
       <div className="login-card">
         <div className="login-header">

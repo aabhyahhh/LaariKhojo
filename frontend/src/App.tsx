@@ -1,4 +1,5 @@
 import { Routes, Route, useLocation, Navigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import HomeScreen from "./components/HomeScreen";
 import Header from "./components/Header";
 import Register from "./components/Register";
@@ -12,8 +13,8 @@ import "leaflet/dist/leaflet.css";
 import "./App.css";
 
 interface OperatingHours {
-  open: string;    // Format: "HH:mm" in 24-hour format
-  close: string;   // Format: "HH:mm" in 24-hour format
+  openTime: string;    // Format: "HH:mm" in 24-hour format
+  closeTime: string;   // Format: "HH:mm" in 24-hour format
   days: number[];  // 0-6 representing Sunday-Saturday
 }
 
@@ -49,29 +50,36 @@ function MapDisplay() {
   const [currentZoom, setCurrentZoom] = useState<number>(13);
   const markersUpdateInterval = useRef<number | null>(null);
 
-  const isVendorOperating = (operatingHours: OperatingHours): boolean => {
-    const now = new Date();
-    const currentDay = now.getDay();
-    const currentTime = now.getHours() * 60 + now.getMinutes();
-  
-    // Check if vendor operates on current day
-    if (!operatingHours.days.includes(currentDay)) {
-      return false;
-    }
-  
-    // Convert operating hours to minutes for comparison
-    const [openHours, openMinutes] = operatingHours.open.split(':').map(Number);
-    const [closeHours, closeMinutes] = operatingHours.close.split(':').map(Number);
-    const openTime = openHours * 60 + openMinutes;
-    const closeTime = closeHours * 60 + closeMinutes;
-  
-    // Handle cases where closing time is on the next day
-    if (closeTime < openTime) {
-      return currentTime >= openTime || currentTime <= closeTime;
-    }
-  
-    return currentTime >= openTime && currentTime <= closeTime;
-  };
+  // Modified isVendorOperating function to handle undefined operatingHours
+const isVendorOperating = (operatingHours?: OperatingHours): boolean => {
+  // Return false if operatingHours is undefined or doesn't have required properties
+  if (!operatingHours || !operatingHours.days || !operatingHours.openTime || !operatingHours.closeTime) {
+    return false;
+  }
+
+  const now = new Date();
+  const currentDay = now.getDay();
+  const currentTime = now.getHours() * 60 + now.getMinutes();
+
+  // Check if vendor operates on current day
+  if (!operatingHours.days.includes(currentDay)) {
+    return false;
+  }
+
+  // Convert operating hours to minutes for comparison
+  const [openHours, openMinutes] = operatingHours.openTime.split(':').map(Number);
+  const [closeHours, closeMinutes] = operatingHours.closeTime.split(':').map(Number);
+  const openTime = openHours * 60 + openMinutes;
+  const closeTime = closeHours * 60 + closeMinutes;
+
+  // Handle cases where closing time is on the next day
+  if (closeTime < openTime) {
+    return currentTime >= openTime || currentTime <= closeTime;
+  }
+
+  return currentTime >= openTime && currentTime <= closeTime;
+};
+
 
   const getUserLocation = () => {
     if (navigator.geolocation) {
@@ -231,57 +239,94 @@ function MapDisplay() {
     }
   };
   
-  const updateMapMarkers = async (vendors: Vendor[]) => {
-    if (!mapRef.current) {
-      initializeMap();
+  // Modified updateMapMarkers function to safely handle vendor information
+const updateMapMarkers = async (vendors: Vendor[]) => {
+  if (!mapRef.current) {
+    initializeMap();
+  }
+
+  // Clear existing vendor markers
+  Object.values(markersRef.current).forEach(marker => marker.remove());
+  markersRef.current = {};
+
+  vendors.forEach(vendor => {
+    console.log(`Vendor: ${vendor.name}, MapsLink: ${vendor.mapsLink || 'No maps link'}`);
+    
+    // Check if mapsLink exists
+    if (!vendor.mapsLink) {
+      console.log(`${vendor.name} has no Google Maps link.`);
+      return; // Skip this vendor
     }
-  
-    // Clear existing vendor markers
-    Object.values(markersRef.current).forEach(marker => marker.remove());
-    markersRef.current = {};
-  
-    vendors.forEach(vendor => {
-      console.log(`Vendor: ${vendor.name}, MapsLink: ${vendor.mapsLink}`);
-      const coords = extractCoordinates(vendor.mapsLink);
-      console.log(`Extracted Coordinates:`, coords);    
-  
-      if (isVendorOperating(vendor.operatingHours) && coords) {
-        console.log(`Adding marker for ${vendor.name} at:`, coords);
-        const operatingStatus = `Open: ${vendor.operatingHours.open} - ${vendor.operatingHours.close}`;
-        const daysOpen = vendor.operatingHours.days
+    
+    const coords = extractCoordinates(vendor.mapsLink);
+    console.log(`Extracted Coordinates:`, coords);  
+
+    // Check if vendor is operating and has valid coordinates
+    if (isVendorOperating(vendor.operatingHours) && coords) {
+      console.log(`Adding marker for ${vendor.name} at:`, coords);
+      
+      // Safely display operating hours information if available
+      let operatingStatus = "Hours not specified";
+      let daysOpen = "Days not specified";
+      
+      if (vendor.operatingHours && vendor.operatingHours.openTime && vendor.operatingHours.closeTime) {
+        operatingStatus = `Open: ${vendor.operatingHours.openTime} - ${vendor.operatingHours.closeTime}`;
+      }
+      
+      if (vendor.operatingHours && vendor.operatingHours.days && Array.isArray(vendor.operatingHours.days)) {
+        daysOpen = vendor.operatingHours.days
           .map(day => ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][day])
           .join(', ');
-
-        const popupContent = `
-          <div class="custom-popup">
-            <h3 style="font-weight: bold; margin-bottom: 5px;">${vendor.name}</h3>
-            <p><strong>Contact:</strong> ${vendor.contactNumber}</p>
-            <p><strong>Hours:</strong> ${operatingStatus}</p>
-            <p><strong>Days Open:</strong> ${daysOpen}</p>
-            <p><strong>Location:</strong> <a href="${vendor.mapsLink}" target="_blank" style="color: blue; text-decoration: underline;">View on Google Maps</a></p>
-          </div>
-        `;
-
-        // Create vendor icon with size based on current zoom level
-        const customIcon = createVendorIcon();
-  
-        const marker = L.marker([coords.latitude, coords.longitude], { icon: customIcon })
-          .addTo(mapRef.current!)
-          .bindPopup(popupContent, {className:'custom-popup'});
-        
-        markersRef.current[vendor._id] = marker;
-      } else {
-        console.log(`${vendor.name} is currently closed or has invalid coordinates`);
       }
-    });
+
+      const popupContent = `
+        <div class="custom-popup">
+  <h3 style="font-weight: 600; margin: 0 0 10px 0; font-size: 18px;">${vendor.name}</h3>
   
-    // Fit map bounds to include all markers only if user location is not available
-    if (!userLocation && Object.keys(markersRef.current).length > 0) {
-      const markers = Object.values(markersRef.current);
-      const group = L.featureGroup(markers);
-      mapRef.current?.fitBounds(group.getBounds().pad(0.1));
+  <div class="info-line" style="margin-bottom: 8px; display: flex;">
+    <div class="info-label" style="font-weight: 600; margin-right: 5px; min-width: 75px;">Contact:</div>
+    <div class="info-value" style="flex: 1;">${vendor.contactNumber || 'Not provided'}</div>
+  </div>
+  
+  <div class="info-line" style="margin-bottom: 8px; display: flex;">
+    <div class="info-label" style="font-weight: 600; margin-right: 5px; min-width: 75px;">Hours:</div>
+    <div class="info-value" style="flex: 1;">${operatingStatus}</div>
+  </div>
+  
+  <div class="info-line" style="margin-bottom: 8px; display: flex;">
+    <div class="info-label" style="font-weight: 600; margin-right: 5px; min-width: 75px;">Days Open:</div>
+    <div class="info-value" style="flex: 1; word-wrap: break-word;">${daysOpen}</div>
+  </div>
+  
+  <div class="info-line" style="margin-bottom: 8px; display: flex;">
+    <div class="info-label" style="font-weight: 600; margin-right: 5px; min-width: 75px;">Location:</div>
+    <div class="info-value" style="flex: 1;">
+      <a href="${vendor.mapsLink}" target="_blank" style="color: white; text-decoration: underline;">View</a>
+    </div>
+  </div>
+</div>
+      `;
+
+      // Create vendor icon with size based on current zoom level
+      const customIcon = createVendorIcon();
+
+      const marker = L.marker([coords.latitude, coords.longitude], { icon: customIcon })
+        .addTo(mapRef.current!)
+        .bindPopup(popupContent, {className:'custom-popup'});
+      
+      markersRef.current[vendor._id] = marker;
+    } else {
+      console.log(`${vendor.name} is currently closed, has invalid coordinates, or missing operating hours`);
     }
-  };
+  });
+
+  // Fit map bounds to include all markers only if user location is not available
+  if (!userLocation && Object.keys(markersRef.current).length > 0) {
+    const markers = Object.values(markersRef.current);
+    const group = L.featureGroup(markers);
+    mapRef.current?.fitBounds(group.getBounds().pad(0.1));
+  }
+};
 
   useEffect(() => {
     // Get user location first
@@ -368,6 +413,7 @@ function MapDisplay() {
 
 function App() {
   const location = useLocation();  
+  const navigate = useNavigate(); // Add this
   const [showRegisterButton, setShowRegisterButton] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
@@ -380,51 +426,45 @@ function App() {
     setIsLoggedIn(!!token);
   }, [location]);
 
-  // Continue from where we left off in the App component
-const handleLoginSuccess = (token: string) => {
-  setIsLoggedIn(true);
-  
-  // Check if there's a redirect destination saved
-  const redirectPath = localStorage.getItem('redirectAfterLogin');
-  if (redirectPath) {
-    localStorage.removeItem('redirectAfterLogin');
-    window.location.href = redirectPath;
-  } else {
-    // Default redirect to home if no specific destination
-    window.location.href = '/';
-  }
-};
+  const handleLoginSuccess = (token: string) => {
+    setIsLoggedIn(true);
+    
+    // Get the redirect path from location state if available
+    const from = location.state?.from?.pathname || '/update-profile';
+    
+    // Use navigate instead of window.location for better React Router integration
+    navigate(from, { replace: true });
+  };
 
-const handleLogout = () => {
-  localStorage.removeItem('token');
-  setIsLoggedIn(false);
-};
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    setIsLoggedIn(false);
+    navigate('/login');
+  };
 
-return (
-  <>
-    <Header 
-      showRegisterButton={showRegisterButton}
-      isLoggedIn={isLoggedIn}
-      onLogout={handleLogout}
-    />
-    <Routes>
-      <Route path="/" element={<HomeScreen />} />
-      <Route path="/map" element={<MapDisplay />} />
-      <Route path="/register" element={<Register onRegisterSuccess={() => {}} />} />
-      <Route path="/login" element={<Login onLoginSuccess={handleLoginSuccess} />} />
-      <Route 
-        path="/update-profile" 
-        element={
-          <ProtectedRoute>
-            <UpdateProfile />
-          </ProtectedRoute>
-        } 
+  return (
+    <>
+      <Header 
+        showRegisterButton={showRegisterButton}
+        isLoggedIn={isLoggedIn}
+        onLogout={handleLogout}
       />
-    </Routes>
-  </>
-);
+      <Routes>
+        <Route path="/" element={<HomeScreen />} />
+        <Route path="/map" element={<MapDisplay />} />
+        <Route path="/register" element={<Register onRegisterSuccess={() => {}} />} />
+        <Route path="/login" element={<Login onLoginSuccess={handleLoginSuccess} />} />
+        <Route 
+          path="/update-profile" 
+          element={
+            isLoggedIn ? 
+              <UpdateProfile /> : 
+              <Navigate to="/login" state={{ from: location }} replace />
+          } 
+        />
+      </Routes>
+    </>
+  );
 }
 
-export default App; 
-
-      
+export default App;

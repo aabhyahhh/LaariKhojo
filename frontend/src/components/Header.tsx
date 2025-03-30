@@ -1,7 +1,7 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import "./Header.css";
-import "../assets/profile.png";
+import fullLogo from "../assets/full-logo.png";
 
 interface HeaderProps {
   showRegisterButton?: boolean;
@@ -31,33 +31,33 @@ const Header: React.FC<HeaderProps> = ({
   };
 
   return (
-    <header className="fixed top-0 left-0 right-0 bg-white shadow-md z-50">
-      <div className="header">
+    <header>
+      <div className="header-container">
         <div
-          className="left-header"
+          className="logo"
           onClick={() => navigate("/")}
         >
-          Laari Khojo
+          <img src={fullLogo} alt="" />
         </div>
-        </div>
+        
+        <div className="header-right">
+          {showRegisterButton && (
+            <button
+              onClick={handleRegisterClick}
+              className="register-btn"
+            >
+              Register
+            </button>
+          )}
 
-        <div className="right-header">
-        {showRegisterButton && (
-          <button
-            onClick={handleRegisterClick}
-            className="px-4 py-2 rounded-md bg-blue-500 text-white hover:bg-blue-600 transition-colors"
-          >
-            Register
-          </button>
-        )}
-
-        {/* Profile Icon */}
-        <div onClick={handleProfileClick} className="user-profile">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512">
-            <path d="M224 256A128 128 0 1 0 224 0a128 128 0 1 0 0 256zm-45.7 48C79.8 304 0 383.8 0 482.3C0 498.7 13.3 512 29.7 512l388.6 0c16.4 0 29.7-13.3 29.7-29.7C448 383.8 368.2 304 269.7 304l-91.4 0z" />
-          </svg>
+          {/* Profile Icon - only shown for simplicity in this implementation */}
+          <div onClick={handleProfileClick} className="user-profile">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512">
+              <path d="M224 256A128 128 0 1 0 224 0a128 128 0 1 0 0 256zm-45.7 48C79.8 304 0 383.8 0 482.3C0 498.7 13.3 512 29.7 512l388.6 0c16.4 0 29.7-13.3 29.7-29.7C448 383.8 368.2 304 269.7 304l-91.4 0z" />
+            </svg>
+          </div>
         </div>
-        </div>
+      </div>
     </header>
   );
 };
