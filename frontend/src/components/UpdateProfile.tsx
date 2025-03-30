@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import "./Login.css"; // Reuse login styles
+import "./Register.css"; // Reuse login styles
 import Header from "./Header";
 
 interface OperatingHours {
@@ -100,7 +100,7 @@ function UpdateProfile() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    setSuccess(null);
+    setSuccess('Profile updated successfully!');
 
     const token = localStorage.getItem("token");
     if (!token) {
@@ -154,133 +154,147 @@ function UpdateProfile() {
   return (
     <>
       <Header isLoggedIn={true} onLogout={handleLogout} />
-
-      <div className="login-container">
-        <div className="login-card" style={{ maxWidth: "600px" }}>
-          <div className="login-header">
-            <h2>Update Your Profile</h2>
-            <p>Modify your vendor information</p>
-          </div>
-
-          {error && (
-            <div className="error-message">
-              <div className="error-icon">⚠️</div>
-              <p>{error}</p>
+      
+      <div className="register-container">
+        <div className="register-card">
+          {success ? (
+            <div className="success-message">
+              <h2>Profile Updated Successfully!</h2>
             </div>
-          )}
-
-          {success && (
-            <div className="success-message" style={{ 
-              backgroundColor: "#d4edda", 
-              color: "#155724", 
-              padding: "10px", 
-              borderRadius: "4px", 
-              marginBottom: "20px" 
-            }}>
-              <p>✅ {success}</p>
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="login-form">
-            <div className="form-group">
-              <label htmlFor="name">Laari Name</label>
-              <input
-                id="name"
-                type="text"
-                required
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Your stall name"
-              />
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="contactNumber">Contact Number</label>
-              <input
-                id="contactNumber"
-                type="tel"
-                required
-                value={contactNumber}
-                onChange={(e) => setContactNumber(e.target.value)}
-                placeholder="Your phone number"
-              />
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="mapsLink">Google Maps Link</label>
-              <input
-                id="mapsLink"
-                type="url"
-                required
-                value={mapsLink}
-                onChange={(e) => setMapsLink(e.target.value)}
-                placeholder="https://maps.google.com/..."
-              />
-            </div>
-
-            <div className="form-group">
-              <label>Operating Hours</label>
-              <div className="flex space-x-4">
-                <div className="w-1/2">
-                  <label htmlFor="openTime" className="text-sm">Open</label>
-                  <input
-                    id="openTime"
-                    type="time"
-                    required
-                    value={openTime}
-                    onChange={(e) => setOpenTime(e.target.value)}
-                    className="w-full"
-                  />
-                </div>
-                <div className="w-1/2">
-                  <label htmlFor="closeTime" className="text-sm">Close</label>
-                  <input
-                    id="closeTime"
-                    type="time"
-                    required
-                    value={closeTime}
-                    onChange={(e) => setCloseTime(e.target.value)}
-                    className="w-full"
-                  />
-                </div>
+          ) : (
+            <>
+              <div className="register-header">
+                <h2>Update Your Profile</h2>
+                <p>Modify your vendor information</p>
               </div>
-            </div>
 
-            <div className="form-group">
-              <label>Operating Days</label>
-              <div className="grid grid-cols-2 gap-2 mt-2">
-                {daysOfWeek.map((day) => (
-                  <div key={day.id} className="flex items-center">
-                    <input
-                      type="checkbox"
-                      id={`day-${day.id}`}
-                      checked={selectedDays.includes(day.id)}
-                      onChange={() => handleDayToggle(day.id)}
-                      className="mr-2"
-                    />
-                    <label htmlFor={`day-${day.id}`}>{day.name}</label>
+              {error && (
+                <div className="error-message">
+                  <div className="error-icon">⚠️</div>
+                  <p>{error}</p>
+                </div>
+              )}
+
+              <form onSubmit={handleSubmit} className="register-form">
+                <div className="form-group">
+                  <label htmlFor="username">
+                    Laari Name
+                  </label>
+                  <input
+                    type="text"
+                    id="username"
+                    onChange={(e) => setName(e.target.value)}
+                    value={name}
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="contactNumber">
+                    Contact Number
+                  </label>
+                  <input
+                    type="tel"
+                    id="contactNumber"
+                    onChange={(e) => setContactNumber(e.target.value)}
+                    value={contactNumber}
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="mapsLink">
+                    Google Maps URL <a
+                      href="https://www.google.co.in/maps/preview"
+                      style={{ color: "blue", textDecoration: "underline" }}
+                    >https://www.google.co.in/maps/preview
+                    </a>
+                  </label>
+                  <input
+                    type="url"
+                    id="mapsLink"
+                    onChange={(e) => setMapsLink(e.target.value)}
+                    value={mapsLink}
+                    required
+                  />
+                </div>
+
+                {/* Operating Hours Section */}
+                <div className="form-group">
+                  <label>Operating Hours</label>
+                  <div className="opening-hours-container">
+                    <div className="time-inputs">
+                      <label htmlFor="openTime">Open Time</label>
+                      <input
+                        type="time"
+                        id="openTime"
+                        value={openTime}
+                        onChange={(e) => setOpenTime(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="time-inputs">
+                      <label htmlFor="closeTime">Close Time</label>
+                      <input
+                        type="time"
+                        id="closeTime"
+                        value={closeTime}
+                        onChange={(e) => setCloseTime(e.target.value)}
+                        required
+                      />
+                    </div>
                   </div>
-                ))}
+                </div>
+
+                {/* Operating Days Section */}
+                <div className="form-group">
+                  <label>Operating Days</label>
+                  <div className="days-grid">
+                    {daysOfWeek.map((day) => (
+                      <div key={day.id} className="day-checkbox">
+                        <label htmlFor={`day-${day.id}`}>{day.name}</label>
+                        <input
+                          type="checkbox"
+                          id={`day-${day.id}`}
+                          checked={selectedDays.includes(day.id)}
+                          onChange={() => handleDayToggle(day.id)}
+                          className="day-checkbox-input"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <button
+                  className="register-button"
+                  type="submit"
+                >
+                  Update Profile
+                </button>
+              </form>
+
+              <div className="login-link">
+                <p>
+                  <button 
+                    onClick={handleLogout}
+                    className="text-red-500 hover:text-red-700"
+                    style={{ 
+                      backgroundColor: "transparent", 
+                      border: "none", 
+                      cursor: "pointer",
+                      textDecoration: "underline" 
+                    }}
+                  >
+                    Logout
+                  </button>
+                </p>
               </div>
-            </div>
-
-            <button type="submit" className="login-button">
-              Update Profile
-            </button>
-          </form>
-
-          <div className="mt-4 text-center">
-            <button 
-              onClick={handleLogout}
-              className="text-red-500 hover:text-red-700 underline"
-            >
-              Logout
-            </button>
-          </div>
+            </>
+          )}
         </div>
       </div>
     </>
   );
-}
+};
 
 export default UpdateProfile;

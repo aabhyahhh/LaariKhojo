@@ -1,0 +1,90 @@
+*{
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: Helvetica, Arial, sans-serif;
+}
+
+.home-container {
+    width: 100%;
+    height: 100vh;
+    position: relative;
+  }
+  
+  .hero-section {
+    width: 100%;
+    height: 100vh;
+    background-image: url('../assets/homescreen-bg.png'); /* You'll need to add this image to your assets */
+    background-size: cover;
+    background-position: center;
+    position: relative;
+  }
+  
+  .overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(122, 79, 79, 0.5); /* Dark overlay for better text visibility */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+  }
+  
+  .hero-content {
+    z-index: 10;
+    max-width: 800px;
+    padding: 20px;
+  }
+  
+  .hero-content h1 {
+    font-size: 3rem;
+    font-weight: 600;
+    color: white;
+    margin-bottom: 30px;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.6);
+  }
+  
+  .explore-btn {
+    background-color: #Fb5d51;
+    color: white;
+    border: 2px solid #Fb5d51;
+    padding: 12px 36px;
+    font-size: 1.2rem;
+    border-radius: 30px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(5px);
+  }
+  
+  .explore-btn:hover {
+    background-color: rgba(255, 255, 255, 0.5);
+    color: #Fb5d51;
+    transform: translateY(-3px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+  }
+  
+  .explore-btn:active {
+    transform: translateY(-1px);
+    box-shadow: 0 5px 10px rgba(0, 0, 0, 0.2);
+  }
+  
+  /* Responsive styles */
+  @media (max-width: 768px) {
+    .hero-content h1 {
+      font-size: 2.5rem;
+    }
+    
+    .explore-btn {
+      padding: 10px 30px;
+      font-size: 1rem;
+    }
+  }
+  
+  @media (max-width: 480px) {
+    .hero-content h1 {
+      font-size: 2rem;
+    }
+  }

@@ -8,12 +8,11 @@ const MONGOURI = process.env.MONGOURI;
 
 const authRoutes = require("./routes/authRoute");
 
-const allowedOrigin = ["http://localhost:5173"];
+const allowedOrigin = "http://localhost:5173";
 
 const app = express();
-app.use(cors());
+
 const PORT = process.env.PORT || 3000;
-app.use(express.json()); // <-- Important: This enables JSON body parsing
 app.use(express.urlencoded({ extended: true }));
 app.use(
   cors({

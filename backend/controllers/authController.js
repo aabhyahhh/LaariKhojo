@@ -5,11 +5,11 @@ const { validationResult } = require("express-validator");
 const bcrypt = require("bcryptjs"); //decrypting password
 const jwt = require("jsonwebtoken");
 
-console.log("6");
 ///////////////////    registerUser      ///////////////////
 
 const registerUser = async (req, res) => {
   try {
+    console.log("Request Body:", req.body); // Debugging line
     const errors = validationResult(req);
 
     if (!errors.isEmpty()) {
@@ -50,7 +50,7 @@ const registerUser = async (req, res) => {
     if (isExistEmail) {
       return res.status(409).json({
         success: false,
-        msg: "Email already exists!",
+        msg: "User already exists!",
       });
     }
 
@@ -83,8 +83,6 @@ const registerUser = async (req, res) => {
     });
   }
 };
-
-console.log("7");
 
 ///////////////////    loginUser      ///////////////////
 

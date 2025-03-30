@@ -166,17 +166,19 @@ const Register: React.FC<RegisterProps> = ({ onRegisterSuccess }) => {
       setEmail("");
       setContactNumber("");
       setMapsLink("");
-    } catch (err) {
-      const error = err as AxiosError;
+    }catch (err) {
+      const error = err as AxiosError<{ msg?: string }>; // Define expected response structure
       if (!error?.response) {
         setErrMsg("No Server Response");
       } else if (error.response?.status === 409) {
         setErrMsg("Name Taken");
       } else {
-        setErrMsg("Registration Failed");
+        console.error("Registration error:", error.response?.data);
+        setErrMsg(`Registration Failed: ${error.response?.data?.msg || "Unknown error"}`);
       }
       errRef.current?.focus();
     }
+    
   };
 
   return (
