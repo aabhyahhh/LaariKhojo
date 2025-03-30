@@ -6,7 +6,6 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import axios, { AxiosResponse, AxiosError } from "axios";
-import { Link } from "react-router-dom";
 import "./Register.css";
 
 const USER_REGEX = /^[A-Za-z0-9][A-Za-z0-9-_ ]{2,}$/;

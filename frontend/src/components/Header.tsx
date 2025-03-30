@@ -11,8 +11,6 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({
   showRegisterButton = true,
-  onLogout,
-  isLoggedIn = false,
 }) => {
   const navigate = useNavigate();
 
