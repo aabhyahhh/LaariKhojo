@@ -8,16 +8,32 @@ const MONGOURI = process.env.MONGOURI;
 
 const authRoutes = require("./routes/authRoute");
 
-const allowedOrigin = "http://localhost:5173";
-
+const allowedOrigins = [
+  "https://laarikhojo.in",  // Without trailing slash
+  "https://laarikhojo.in/", // With trailing slash
+  "http://localhost:3000",  // For local development
+  "http://localhost:5173",  // For Vite's default port
+  // Add any other origins you need
+];
 const app = express();
 
 const PORT = process.env.PORT || 3000;
 app.use(express.urlencoded({ extended: true }));
 app.use(
   cors({
-    origin: allowedOrigin, // Replace with the actual origin or use an array of allowed origins
-    credentials: true, // This will enable `Access-Control-Allow-Credentials`
+    origin: function(origin, callback) {
+      // Allow requests with no origin (like mobile apps or curl requests)
+      if (!origin) return callback(null, true);
+      
+      if (allowedOrigins.indexOf(origin) !== -1) {
+        callback(null, true);
+      } else {
+        console.log("Blocked origin:", origin);
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
+    methods: "GET,POST,PUT,DELETE",
+    credentials: true,
   })
 );
 const server = http.createServer(app);
@@ -70,7 +86,7 @@ app.get("/api/expand-url", async (req, res) => {
 
 
 // Add this endpoint to your Express server
-app.get("/api/vendors", async (req, res) => {
+app.get("/api/all-users", async (req, res) => {
   try {
     const vendors = await VendorModel.find({});
     res.json({ data: vendors });

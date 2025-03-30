@@ -13,7 +13,8 @@ const PWD_REGEX = /^[A-Za-z0-9].{2,}$/;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_REGEX = /^(\+91[\-\s]?)?[0]?(91)?[789]\d{9}$/;
 const MAPS_REGEX = /^https:\/\/www\.google\.(com|co\.in)\/maps\/place\/.+/i;
-const REGISTER_URL = `${import.meta.env.VITE_REACT_APP_BASEURL}/api/register`;
+const API_URL = "https://laari-khojo-backend.onrender.com";
+const REGISTER_URL = `${API_URL}/api/register`;
 
 interface RegisterProps {
   onRegisterSuccess: () => void;

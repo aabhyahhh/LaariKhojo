@@ -17,6 +17,8 @@ interface ProfileData {
   operatingHours: OperatingHours;
 }
 
+const API_URL = "https://laari-khojo-backend.onrender.com";
+
 function UpdateProfile() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -52,7 +54,7 @@ function UpdateProfile() {
     // Fetch user profile data
     const fetchProfileData = async () => {
       try {
-        const response = await fetch(`${import.meta.env.VITE_REACT_APP_BASEURL}/api/profile`, {
+        const response = await fetch(`${API_URL}/api/profile`, {
           method: "GET",
           headers: {
             "Authorization": `Bearer ${token}`,
@@ -115,7 +117,7 @@ function UpdateProfile() {
     };
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_REACT_APP_BASEURL}/api/update-profile`, {
+      const response = await fetch(`${API_URL}/api/update-profile`, {
         method: "PUT",
         headers: {
           "Authorization": `Bearer ${token}`,
