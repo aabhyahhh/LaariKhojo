@@ -4,9 +4,11 @@ const express = require("express");
 const path = require("path");
 const mongoose = require("mongoose");
 const http = require("http");
+const axios = require("axios");
 const MONGOURI = process.env.MONGOURI;
 
 const authRoutes = require("./routes/authRoute");
+const VendorModel = require("./models/vendorModel");
 
 const allowedOrigins = [
   "https://laarikhojo.in",  // Without trailing slash
@@ -69,12 +71,9 @@ mongoose.connection.on("error", (err) => {
   console.error("MongoDB connection error:", err);
 });
 
-
-
 app.use("/api", authRoutes);
 
-
-
+// API routes
 app.get("/api/expand-url", async (req, res) => {
   const { url } = req.query;
   if (!url) return res.status(400).json({ error: "No URL provided" });
@@ -88,8 +87,6 @@ app.get("/api/expand-url", async (req, res) => {
   }
 });
 
-
-// Add this endpoint to your Express server
 app.get("/api/all-users", async (req, res) => {
   try {
     const vendors = await VendorModel.find({});
@@ -99,12 +96,7 @@ app.get("/api/all-users", async (req, res) => {
   }
 });
 
-
-app.get("/", (req, res) => {
-  res.send("Hello from Express on Render!");
-});
-
-// Move the catch-all route to the end, after all other routes
+// Serve the frontend application for all non-API routes
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '../frontend/dist/index.html'));
 });
