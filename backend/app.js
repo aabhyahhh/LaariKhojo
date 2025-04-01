@@ -4,17 +4,17 @@ const express = require("express");
 const path = require("path");
 const mongoose = require("mongoose");
 const http = require("http");
-const axios = require("axios");
 const MONGOURI = process.env.MONGOURI;
 
 const authRoutes = require("./routes/authRoute");
-const VendorModel = require("./models/vendorModel");
 
 const allowedOrigins = [
   "https://laarikhojo.in",  // Without trailing slash
   "https://laarikhojo.in/", // With trailing slash
   "http://localhost:3000",  // For local development
-  "http://localhost:5173",  // For Vite's default port
+  "http://localhost:5173",
+  "http://localhost:5174",  // Add this line
+  // For Vite's default port
   // Add any other origins you need
 ];
 const app = express();
@@ -38,10 +38,6 @@ app.use(
     credentials: true,
   })
 );
-
-// Serve static files from the frontend dist directory
-app.use(express.static(path.join(__dirname, '../frontend/dist')));
-
 const server = http.createServer(app);
 
 // Apply conditional JSON parsing middleware
@@ -71,9 +67,12 @@ mongoose.connection.on("error", (err) => {
   console.error("MongoDB connection error:", err);
 });
 
+
+
 app.use("/api", authRoutes);
 
-// API routes
+
+
 app.get("/api/expand-url", async (req, res) => {
   const { url } = req.query;
   if (!url) return res.status(400).json({ error: "No URL provided" });
@@ -87,6 +86,8 @@ app.get("/api/expand-url", async (req, res) => {
   }
 });
 
+
+// Add this endpoint to your Express server
 app.get("/api/all-users", async (req, res) => {
   try {
     const vendors = await VendorModel.find({});
@@ -96,9 +97,9 @@ app.get("/api/all-users", async (req, res) => {
   }
 });
 
-// Serve the frontend application for all non-API routes
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../frontend/dist/index.html'));
+
+app.get("/", (req, res) => {
+  res.send("Hello from Express on Render!");
 });
 
 module.exports = app;

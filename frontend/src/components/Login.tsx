@@ -2,8 +2,7 @@ import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import "./Login.css";
 import { Link } from "react-router-dom";
-
-const API_URL = "https://laari-khojo-backend.onrender.com";
+import { API_URL } from "../api/config"; // Import from centralized config
 
 interface LoginProps {
   onLoginSuccess?: (token: string) => void;
@@ -13,7 +12,8 @@ interface LoginProps {
 function Login({ onLoginSuccess, redirectPath = "/update-profile" }: LoginProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   
@@ -23,8 +23,11 @@ const [error, setError] = useState<string | null>(null);
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setLoading(true);
 
     try {
+      console.log(`Attempting login to ${API_URL}/api/login with:`, { email });
+      
       const response = await fetch(`${API_URL}/api/login`, {
         method: "POST",
         headers: {
@@ -33,35 +36,45 @@ const [error, setError] = useState<string | null>(null);
         body: JSON.stringify({ email, password }),
       });
 
+      console.log("Response status:", response.status);
+      
       const data = await response.json();
+      console.log("Response data:", data);
 
       if (!response.ok) {
-        throw new Error(data.message || "Login failed");
+        throw new Error(data.message || data.msg || "Login failed");
       }
 
-      // Store token in localStorage
-      console.log("Storing token in localStorage: " + data.accessToken);
-      localStorage.setItem("token", data.accessToken);
+      // Store token in localStorage (adjust property name if needed)
+      const token = data.accessToken || data.token;
+      if (!token) {
+        throw new Error("No token received from server");
+      }
+      
+      console.log("Login successful, token received");
+      localStorage.setItem("token", token);
 
       // Call the success callback if provided
       if (onLoginSuccess) {
-        onLoginSuccess(data.accessToken);
+        onLoginSuccess(token);
       } else {
         // Only navigate directly if onLoginSuccess is not provided
         navigate(from);
       }
 
     } catch (err) {
+      console.error("Login error:", err);
       if (err instanceof Error) {
-        setError(err.message); // Explicitly setting a string
+        setError(err.message);
       } else {
-        setError("Login failed"); // Fallback to a string error
+        setError("Login failed - server unavailable");
       }
+    } finally {
+      setLoading(false);
     }    
   };
 
   return (
-    <>
     <div className="login-container">
       <div className="login-card">
         <div className="login-header">
@@ -101,19 +114,22 @@ const [error, setError] = useState<string | null>(null);
             />
           </div>
 
-          <button type="submit" className="login-button">
-            Sign in
+          <button 
+            type="submit" 
+            className="login-button"
+            disabled={loading}
+          >
+            {loading ? "Signing in..." : "Sign in"}
           </button>
         </form>
 
         <div className="login-link">
           <p>Don't have an account?
-            <Link to="/register">Sign Up</Link> {/* Use Link instead of a */}
+            <Link to="/register">Sign Up</Link>
           </p>
         </div>
       </div>
     </div>
-    </>
   );
 }
 
