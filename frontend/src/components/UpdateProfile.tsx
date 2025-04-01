@@ -24,14 +24,16 @@ function UpdateProfile() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  
+
   // Form state
   const [name, setName] = useState("");
   const [contactNumber, setContactNumber] = useState("");
   const [mapsLink, setMapsLink] = useState("");
   const [openTime, setOpenTime] = useState("08:00");
   const [closeTime, setCloseTime] = useState("18:00");
-  const [selectedDays, setSelectedDays] = useState<number[]>([0, 1, 2, 3, 4, 5, 6]);
+  const [selectedDays, setSelectedDays] = useState<number[]>([
+    0, 1, 2, 3, 4, 5, 6,
+  ]);
 
   const daysOfWeek = [
     { id: 0, name: "Sunday" },
@@ -40,7 +42,7 @@ function UpdateProfile() {
     { id: 3, name: "Wednesday" },
     { id: 4, name: "Thursday" },
     { id: 5, name: "Friday" },
-    { id: 6, name: "Saturday" }
+    { id: 6, name: "Saturday" },
   ];
 
   useEffect(() => {
@@ -57,9 +59,9 @@ function UpdateProfile() {
         const response = await fetch(`${API_URL}/api/profile`, {
           method: "GET",
           headers: {
-            "Authorization": `Bearer ${token}`,
-            "Content-Type": "application/json"
-          }
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
         });
 
         if (!response.ok) {
@@ -69,16 +71,18 @@ function UpdateProfile() {
         const data = await response.json();
         if (data.success && data.data) {
           const profile: ProfileData = data.data;
-          
+
           // Populate form fields
           setName(profile.name || "");
           setContactNumber(profile.contactNumber || "");
           setMapsLink(profile.mapsLink || "");
-          
+
           if (profile.operatingHours) {
             setOpenTime(profile.operatingHours.open || "08:00");
             setCloseTime(profile.operatingHours.close || "18:00");
-            setSelectedDays(profile.operatingHours.days || [0, 1, 2, 3, 4, 5, 6]);
+            setSelectedDays(
+              profile.operatingHours.days || [0, 1, 2, 3, 4, 5, 6]
+            );
           }
         }
       } catch (err) {
@@ -93,7 +97,7 @@ function UpdateProfile() {
 
   const handleDayToggle = (dayId: number) => {
     if (selectedDays.includes(dayId)) {
-      setSelectedDays(selectedDays.filter(id => id !== dayId));
+      setSelectedDays(selectedDays.filter((id) => id !== dayId));
     } else {
       setSelectedDays([...selectedDays, dayId].sort());
     }
@@ -103,33 +107,52 @@ function UpdateProfile() {
     e.preventDefault();
     setError(null);
     setSuccess(null); // Reset success message
-    
+
     const token = localStorage.getItem("token");
     if (!token) {
       navigate("/login");
       return;
     }
-  
+
     const operatingHours = {
       open: openTime,
       close: closeTime,
-      days: selectedDays
+      days: selectedDays,
     };
-  
+
+    const profileData = {
+      name,
+      contactNumber,
+      mapsLink,
+      operatingHours
+    };
+    
+    console.log("Sending profile update:", profileData);
+
     try {
       const response = await fetch(`${API_URL}/api/update-profile`, {
         method: "PUT",
         headers: {
-          "Authorization": `Bearer ${token}`,
-          "Content-Type": "application/json"
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           name,
           contactNumber,
           mapsLink,
-          operatingHours
-        })
+          operatingHours,
+        }),
       });
+
+      // In your handleSubmit function, check what you're sending:
+      const requestBody = {
+        name,
+        contactNumber,
+        mapsLink,
+        operatingHours,
+      };
+
+      console.log("Sending update with body:", requestBody);
 
       const data = await response.json();
       if (!response.ok) {
@@ -156,7 +179,7 @@ function UpdateProfile() {
   return (
     <>
       <Header isLoggedIn={true} onLogout={handleLogout} />
-      
+
       <div className="register-container">
         <div className="register-card">
           {success ? (
@@ -179,9 +202,7 @@ function UpdateProfile() {
 
               <form onSubmit={handleSubmit} className="register-form">
                 <div className="form-group">
-                  <label htmlFor="username">
-                    Laari Name
-                  </label>
+                  <label htmlFor="username">Laari Name</label>
                   <input
                     type="text"
                     id="username"
@@ -192,9 +213,7 @@ function UpdateProfile() {
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="contactNumber">
-                    Contact Number
-                  </label>
+                  <label htmlFor="contactNumber">Contact Number</label>
                   <input
                     type="tel"
                     id="contactNumber"
@@ -206,10 +225,12 @@ function UpdateProfile() {
 
                 <div className="form-group">
                   <label htmlFor="mapsLink">
-                    Google Maps URL <a
+                    Google Maps URL{" "}
+                    <a
                       href="https://www.google.co.in/maps/preview"
                       style={{ color: "blue", textDecoration: "underline" }}
-                    >https://www.google.co.in/maps/preview
+                    >
+                      https://www.google.co.in/maps/preview
                     </a>
                   </label>
                   <input
@@ -267,24 +288,21 @@ function UpdateProfile() {
                   </div>
                 </div>
 
-                <button
-                  className="register-button"
-                  type="submit"
-                >
+                <button className="register-button" type="submit">
                   Update Profile
                 </button>
               </form>
 
               <div className="login-link">
                 <p>
-                  <button 
+                  <button
                     onClick={handleLogout}
                     className="text-red-500 hover:text-red-700"
-                    style={{ 
-                      backgroundColor: "transparent", 
-                      border: "none", 
+                    style={{
+                      backgroundColor: "transparent",
+                      border: "none",
                       cursor: "pointer",
-                      textDecoration: "underline" 
+                      textDecoration: "underline",
                     }}
                   >
                     Logout
@@ -297,6 +315,6 @@ function UpdateProfile() {
       </div>
     </>
   );
-};
+}
 
 export default UpdateProfile;
