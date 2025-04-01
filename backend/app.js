@@ -36,6 +36,10 @@ app.use(
     credentials: true,
   })
 );
+
+// Serve static files from the frontend dist directory
+app.use(express.static(path.join(__dirname, '../frontend/dist')));
+
 const server = http.createServer(app);
 
 // Apply conditional JSON parsing middleware
@@ -98,6 +102,11 @@ app.get("/api/all-users", async (req, res) => {
 
 app.get("/", (req, res) => {
   res.send("Hello from Express on Render!");
+});
+
+// Move the catch-all route to the end, after all other routes
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../frontend/dist/index.html'));
 });
 
 module.exports = app;
