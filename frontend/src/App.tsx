@@ -28,19 +28,6 @@ interface Vendor {
   operatingHours: OperatingHours;
 }
 
-// Protected route component to check authentication
-/* function ProtectedRoute({ children }: { children: JSX.Element }) {
-  const isAuthenticated = localStorage.getItem("token") !== null;
-  
-  if (!isAuthenticated) {
-    // Store the intended destination for redirect after login
-    localStorage.setItem("redirectAfterLogin", "/update-profile");
-    return <Navigate to="/login" replace />;
-  }
-  
-  return children;
-} */
-
 function MapDisplay() {
   const mapRef = useRef<L.Map | null>(null);
   const markersRef = useRef<{ [key: string]: L.Marker }>({});
@@ -52,6 +39,8 @@ function MapDisplay() {
     longitude: number;
   } | null>(null);
   const [currentZoom, setCurrentZoom] = useState<number>(13);
+  const [isMapInitialized, setIsMapInitialized] = useState<boolean>(false);
+  const [isLocationLoading, setIsLocationLoading] = useState<boolean>(true);
 
   // Modified isVendorOperating function to handle undefined operatingHours
   const isVendorOperating = (operatingHours?: OperatingHours): boolean => {
@@ -93,6 +82,7 @@ function MapDisplay() {
   };
 
   const getUserLocation = () => {
+    setIsLocationLoading(true);
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
@@ -102,51 +92,21 @@ function MapDisplay() {
           };
           console.log("User location obtained:", userCoords);
           setUserLocation(userCoords);
-
-          // If map is already initialized, center it on user's location
-          if (mapRef.current) {
-            mapRef.current.setView(
-              [userCoords.latitude, userCoords.longitude],
-              15
-            );
-
-            // Add or update user location marker
-            if (userLocationMarkerRef.current) {
-              userLocationMarkerRef.current.setLatLng([
-                userCoords.latitude,
-                userCoords.longitude,
-              ]);
-            } else {
-              const userIcon = L.divIcon({
-                className: "user-location-marker",
-                html: '<div class="pulse"></div>',
-                iconSize: [20, 20],
-                iconAnchor: [10, 10],
-              });
-
-              userLocationMarkerRef.current = L.marker(
-                [userCoords.latitude, userCoords.longitude],
-                {
-                  icon: userIcon,
-                  zIndexOffset: 1000, // Ensure it's above other markers
-                }
-              )
-                .addTo(mapRef.current)
-                .bindPopup("You are here");
-            }
-          }
+          setIsLocationLoading(false);
         },
         (error) => {
           console.error("Error getting user location:", error);
           setError("Could not access your location. Using default view.");
+          setIsLocationLoading(false);
         },
-        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
       );
     } else {
       console.error("Geolocation is not supported by this browser");
       setError(
         "Geolocation is not supported by your browser. Using default view."
       );
+      setIsLocationLoading(false);
     }
   };
 
@@ -181,22 +141,20 @@ function MapDisplay() {
     }
   };
 
-
   const fetchVendors = async () => {
     try {
-      const response = await fetch(
-        `${API_URL}/api/all-users`
-      );
+      const response = await fetch(`${API_URL}/api/all-users`);
       if (!response.ok) {
         throw new Error("Failed to fetch vendors");
       }
       const data = await response.json();
-      console.log("Fetched Vendors:", data); // Debugging
+      console.log("Fetched Vendors:", data);
       setVendors(data.data);
-      updateMapMarkers(data.data);
+      return data.data;
     } catch (error) {
       console.error("Error fetching vendors:", error);
       setError("Failed to fetch vendors data");
+      return [];
     }
   };
 
@@ -219,72 +177,141 @@ function MapDisplay() {
   };
 
   const initializeMap = () => {
+    if (isMapInitialized) {
+      return;
+    }
+
+    // Default center coordinates
+    const defaultCoords: [number, number] = [26.8482821, 75.5609975];
     const initialCoords = userLocation
       ? [userLocation.latitude, userLocation.longitude]
-      : [26.8482821, 75.5609975]; // Default center if user location not available
+      : defaultCoords;
 
-    const initialZoom = userLocation ? 15 : 13; // Zoom closer if we have user location
+    const initialZoom = userLocation ? 15 : 13;
     setCurrentZoom(initialZoom);
 
     console.log("Initializing map with coordinates:", initialCoords);
-    mapRef.current = L.map("map").setView(
-      initialCoords as [number, number],
-      initialZoom
-    );
+    
+    // Check if map container exists
+    const mapContainer = document.getElementById("map");
+    if (!mapContainer) {
+      console.error("Map container not found");
+      return;
+    }
 
-    L.tileLayer(
-      "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
-      {
-        maxZoom: 19,
-        attribution: "Laari Khojo",
-      }
-    ).addTo(mapRef.current);
+    // Initialize map
+    try {
+      mapRef.current = L.map("map").setView(
+        initialCoords as [number, number],
+        initialZoom
+      );
 
-    // Handle zoom events to update icon sizes
-    // Handle zoom events to update icon sizes
-    mapRef.current.on("zoomend", () => {
-      if (mapRef.current) {
-        const newZoom = mapRef.current.getZoom();
-        setCurrentZoom(newZoom);
+      L.tileLayer(
+        "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+        {
+          maxZoom: 19,
+          attribution: "Laari Khojo",
+        }
+      ).addTo(mapRef.current);
 
-        // Update all existing vendor markers with new icon sizes
-        Object.entries(markersRef.current).forEach(([_, marker]) => {
-          const newIcon = createVendorIcon();
-          marker.setIcon(newIcon); 
-        });
-      }
-    });
+      // Handle zoom events to update icon sizes
+      mapRef.current.on("zoomend", () => {
+        if (mapRef.current) {
+          const newZoom = mapRef.current.getZoom();
+          setCurrentZoom(newZoom);
 
-    // Add user location marker if available
-    if (userLocation) {
-      const userIcon = L.divIcon({
-        className: "user-location-marker",
-        html: '<div class="pulse"></div>',
-        iconSize: [20, 20],
-        iconAnchor: [10, 10],
+          // Update all existing vendor markers with new icon sizes
+          Object.entries(markersRef.current).forEach(([_, marker]) => {
+            const newIcon = createVendorIcon();
+            marker.setIcon(newIcon);
+          });
+        }
       });
 
-      userLocationMarkerRef.current = L.marker(
-        [userLocation.latitude, userLocation.longitude],
-        {
-          icon: userIcon,
-          zIndexOffset: 1000, // Ensure it's above other markers
+      // Add user location CSS
+      const style = document.createElement("style");
+      style.textContent = `
+        .user-location-marker {
+          background: transparent;
         }
-      )
-        .addTo(mapRef.current)
-        .bindPopup("You are here");
+        .pulse {
+          width: 20px;
+          height: 20px;
+          background: rgba(0, 128, 255, 0.7);
+          border-radius: 50%;
+          box-shadow: 0 0 0 rgba(0, 128, 255, 0.4);
+          animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+          0% {
+            box-shadow: 0 0 0 0 rgba(0, 128, 255, 0.7);
+          }
+          70% {
+            box-shadow: 0 0 0 15px rgba(0, 128, 255, 0);
+          }
+          100% {
+            box-shadow: 0 0 0 0 rgba(0, 128, 255, 0);
+          }
+        }
+      `;
+      document.head.appendChild(style);
+
+      setIsMapInitialized(true);
+    } catch (error) {
+      console.error("Error initializing map:", error);
+      setError("Failed to initialize map");
     }
   };
 
+  const updateUserLocationMarker = () => {
+    if (!mapRef.current || !userLocation) return;
+
+    // Remove existing marker if it exists
+    if (userLocationMarkerRef.current) {
+      userLocationMarkerRef.current.remove();
+    }
+
+    // Create user location marker
+    const userIcon = L.divIcon({
+      className: "user-location-marker",
+      html: '<div class="pulse"></div>',
+      iconSize: [20, 20],
+      iconAnchor: [10, 10],
+    });
+
+    userLocationMarkerRef.current = L.marker(
+      [userLocation.latitude, userLocation.longitude],
+      {
+        icon: userIcon,
+        zIndexOffset: 1000, // Ensure it's above other markers
+      }
+    )
+      .addTo(mapRef.current)
+      .bindPopup("You are here");
+
+    // Center map on user location with animation
+    mapRef.current.flyTo(
+      [userLocation.latitude, userLocation.longitude],
+      15,
+      {
+        animate: true,
+        duration: 1.5,
+      }
+    );
+  };
+
   // Modified updateMapMarkers function to safely handle vendor information
-  const updateMapMarkers = async (vendors: Vendor[]) => {
-    if (!mapRef.current) {
-      initializeMap();
+  const updateMapMarkers = (vendors: Vendor[]) => {
+    if (!mapRef.current || !isMapInitialized) {
+      return;
     }
 
     // Clear existing vendor markers
     Object.values(markersRef.current).forEach((marker) => marker.remove());
     markersRef.current = {};
+
+    // Track vendor markers for fitting bounds
+    const validMarkers: L.Marker[] = [];
 
     vendors.forEach((vendor) => {
       console.log(
@@ -330,37 +357,37 @@ function MapDisplay() {
 
         const popupContent = `
         <div class="custom-popup">
-  <h3 style="font-weight: 600; margin: 0 0 10px 0; font-size: 18px;">${
-    vendor.name
-  }</h3>
-  
-  <div class="info-line" style="margin-bottom: 8px; display: flex;">
-    <div class="info-label" style="font-weight: 600; margin-right: 5px; min-width: 75px;">Contact:</div>
-    <div class="info-value" style="flex: 1;">${
-      vendor.contactNumber || "Not provided"
-    }</div>
-  </div>
-  
-  <div class="info-line" style="margin-bottom: 8px; display: flex;">
-    <div class="info-label" style="font-weight: 600; margin-right: 5px; min-width: 75px;">Hours:</div>
-    <div class="info-value" style="flex: 1;">${operatingStatus}</div>
-  </div>
-  
-  <div class="info-line" style="margin-bottom: 8px; display: flex;">
-    <div class="info-label" style="font-weight: 600; margin-right: 5px; min-width: 75px;">Days Open:</div>
-    <div class="info-value" style="flex: 1; word-wrap: break-word;">${daysOpen}</div>
-  </div>
-  
-  <div class="info-line" style="margin-bottom: 8px; display: flex;">
-    <div class="info-label" style="font-weight: 600; margin-right: 5px; min-width: 75px;">Location:</div>
-    <div class="info-value" style="flex: 1;">
-      <a href="${
-        vendor.mapsLink
-      }" target="_blank" style="color: white; text-decoration: underline;">View</a>
-    </div>
-  </div>
-</div>
-      `;
+          <h3 style="font-weight: 600; margin: 0 0 10px 0; font-size: 18px;">${
+            vendor.name
+          }</h3>
+          
+          <div class="info-line" style="margin-bottom: 8px; display: flex;">
+            <div class="info-label" style="font-weight: 600; margin-right: 5px; min-width: 75px;">Contact:</div>
+            <div class="info-value" style="flex: 1;">${
+              vendor.contactNumber || "Not provided"
+            }</div>
+          </div>
+          
+          <div class="info-line" style="margin-bottom: 8px; display: flex;">
+            <div class="info-label" style="font-weight: 600; margin-right: 5px; min-width: 75px;">Hours:</div>
+            <div class="info-value" style="flex: 1;">${operatingStatus}</div>
+          </div>
+          
+          <div class="info-line" style="margin-bottom: 8px; display: flex;">
+            <div class="info-label" style="font-weight: 600; margin-right: 5px; min-width: 75px;">Days Open:</div>
+            <div class="info-value" style="flex: 1; word-wrap: break-word;">${daysOpen}</div>
+          </div>
+          
+          <div class="info-line" style="margin-bottom: 8px; display: flex;">
+            <div class="info-label" style="font-weight: 600; margin-right: 5px; min-width: 75px;">Location:</div>
+            <div class="info-value" style="flex: 1;">
+              <a href="${
+                vendor.mapsLink
+              }" target="_blank" style="color: white; text-decoration: underline;">View</a>
+            </div>
+          </div>
+        </div>
+        `;
 
         // Create vendor icon with size based on current zoom level
         const customIcon = createVendorIcon();
@@ -372,6 +399,7 @@ function MapDisplay() {
           .bindPopup(popupContent, { className: "custom-popup" });
 
         markersRef.current[vendor._id] = marker;
+        validMarkers.push(marker);
       } else {
         console.log(
           `${vendor.name} is currently closed, has invalid coordinates, or missing operating hours`
@@ -379,55 +407,18 @@ function MapDisplay() {
       }
     });
 
-    // Fit map bounds to include all markers only if user location is not available
-    if (!userLocation && Object.keys(markersRef.current).length > 0) {
-      const markers = Object.values(markersRef.current);
-      const group = L.featureGroup(markers);
-      mapRef.current?.fitBounds(group.getBounds().pad(0.1));
+    // Fit map bounds to include all markers if we don't have user location
+    // or if no markers are visible near user location
+    if (validMarkers.length > 0 && !userLocation) {
+      const group = L.featureGroup(validMarkers);
+      mapRef.current.fitBounds(group.getBounds().pad(0.1));
     }
   };
 
+  // Setup initial conditions
   useEffect(() => {
     // Get user location first
     getUserLocation();
-
-    // Fetch vendors
-    fetchVendors();
-
-    // Update markers every minute to check operating hours
-    const intervalId = window.setInterval(() => {
-      if (vendors.length > 0) {
-        updateMapMarkers(vendors);
-      }
-    }, 60000); // Check every minute
-
-    // Add CSS for user location pulse effect
-    const style = document.createElement("style");
-    style.textContent = `
-      .user-location-marker {
-        background: transparent;
-      }
-      .pulse {
-        width: 20px;
-        height: 20px;
-        background: rgba(0, 128, 255, 0.7);
-        border-radius: 50%;
-        box-shadow: 0 0 0 rgba(0, 128, 255, 0.4);
-        animation: pulse 2s infinite;
-      }
-      @keyframes pulse {
-        0% {
-          box-shadow: 0 0 0 0 rgba(0, 128, 255, 0.7);
-        }
-        70% {
-          box-shadow: 0 0 0 15px rgba(0, 128, 255, 0);
-        }
-        100% {
-          box-shadow: 0 0 0 0 rgba(0, 128, 255, 0);
-        }
-      }
-    `;
-    document.head.appendChild(style);
 
     // Cleanup function
     return () => {
@@ -435,47 +426,161 @@ function MapDisplay() {
         mapRef.current.remove();
         mapRef.current = null;
       }
-      if (intervalId) {
-        window.clearInterval(intervalId);
-      }
       Object.values(markersRef.current).forEach((marker) => marker.remove());
       markersRef.current = {};
       if (userLocationMarkerRef.current) {
         userLocationMarkerRef.current.remove();
         userLocationMarkerRef.current = null;
       }
-      document.head.removeChild(style);
+      setIsMapInitialized(false);
     };
   }, []);
 
-  // Update markers whenever vendors data or zoom level changes
+  // Initialize map once we know about user location (or timeout occurred)
   useEffect(() => {
-    if (vendors.length > 0 && mapRef.current) {
+    if (!isLocationLoading && !isMapInitialized) {
+      initializeMap();
+    }
+  }, [isLocationLoading, isMapInitialized]);
+
+  // Add user location marker after map is initialized and location is available
+  useEffect(() => {
+    if (isMapInitialized && userLocation) {
+      updateUserLocationMarker();
+    }
+  }, [isMapInitialized, userLocation]);
+
+  // Fetch vendors after map is initialized
+  useEffect(() => {
+    if (isMapInitialized) {
+      const loadVendors = async () => {
+        const vendorData = await fetchVendors();
+        updateMapMarkers(vendorData);
+      };
+      loadVendors();
+
+      // Setup refresh interval
+      const intervalId = window.setInterval(() => {
+        loadVendors();
+      }, 60000); // Check every minute
+
+      return () => {
+        window.clearInterval(intervalId);
+      };
+    }
+  }, [isMapInitialized]);
+
+  // Update markers whenever vendors or zoom level changes
+  useEffect(() => {
+    if (isMapInitialized && vendors.length > 0) {
       updateMapMarkers(vendors);
     }
-  }, [vendors, currentZoom]);
+  }, [vendors, currentZoom, isMapInitialized]);
 
-  // Update map center when user location changes
-  useEffect(() => {
-    if (userLocation && mapRef.current) {
-      mapRef.current.setView(
-        [userLocation.latitude, userLocation.longitude],
-        15
-      );
-    }
-  }, [userLocation]);
+  // Add location refresh button
+  const refreshUserLocation = () => {
+    getUserLocation();
+  };
 
   return (
-    <div style={{ width: "100%", height: "100vh" }}>
+    <div style={{ width: "100%", height: "100vh", position: "relative" }}>
       <div id="map" style={{ width: "100%", height: "100%" }}></div>
-      {error && <div className="error-message">{error}</div>}
+      {error && (
+        <div
+          className="error-message"
+          style={{
+            position: "absolute",
+            top: "10px",
+            left: "50%",
+            transform: "translateX(-50%)",
+            backgroundColor: "rgba(255, 0, 0, 0.7)",
+            color: "white",
+            padding: "10px",
+            borderRadius: "5px",
+            zIndex: 1000,
+          }}
+        >
+          {error}
+        </div>
+      )}
+      <button
+        onClick={refreshUserLocation}
+        style={{
+          position: "absolute",
+          bottom: "20px",
+          right: "20px",
+          zIndex: 1000,
+          padding: "10px",
+          borderRadius: "50%",
+          backgroundColor: "white",
+          border: "2px solid #007bff",
+          cursor: "pointer",
+          width: "50px",
+          height: "50px",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          boxShadow: "0 2px 5px rgba(0,0,0,0.2)",
+        }}
+        title="Refresh Location"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="#007bff"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+        </svg>
+      </button>
+      {isLocationLoading && (
+        <div
+          style={{
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            backgroundColor: "rgba(255, 255, 255, 0.8)",
+            padding: "20px",
+            borderRadius: "5px",
+            zIndex: 1000,
+            textAlign: "center",
+          }}
+        >
+          <div>Loading your location...</div>
+          <div
+            style={{
+              width: "30px",
+              height: "30px",
+              border: "5px solid #f3f3f3",
+              borderTop: "5px solid #3498db",
+              borderRadius: "50%",
+              margin: "10px auto",
+              animation: "spin 2s linear infinite",
+            }}
+          ></div>
+          <style>
+            {`
+              @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+              }
+            `}
+          </style>
+        </div>
+      )}
     </div>
   );
 }
 
 function App() {
   const location = useLocation();
-  const navigate = useNavigate(); // Add this
+  const navigate = useNavigate();
   const [showRegisterButton, setShowRegisterButton] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
@@ -491,8 +596,8 @@ function App() {
   const handleLoginSuccess = (token: string) => {
     setIsLoggedIn(true);
 
-     // Store token (example: localStorage)
-  localStorage.setItem("authToken", token);
+    // Store token (example: localStorage)
+    localStorage.setItem("token", token);
 
     // Get the redirect path from location state if available
     const from = location.state?.from?.pathname || "/update-profile";

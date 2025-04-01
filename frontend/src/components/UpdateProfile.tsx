@@ -102,20 +102,20 @@ function UpdateProfile() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    setSuccess('Profile updated successfully!');
-
+    setSuccess(null); // Reset success message
+    
     const token = localStorage.getItem("token");
     if (!token) {
       navigate("/login");
       return;
     }
-
+  
     const operatingHours = {
       open: openTime,
       close: closeTime,
       days: selectedDays
     };
-
+  
     try {
       const response = await fetch(`${API_URL}/api/update-profile`, {
         method: "PUT",

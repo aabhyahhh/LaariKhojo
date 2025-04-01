@@ -53,8 +53,10 @@ const Register: React.FC<RegisterProps> = ({ onRegisterSuccess }) => {
 
   const [openTime, setOpenTime] = useState("08:00");
   const [closeTime, setCloseTime] = useState("18:00");
-  const [selectedDays, setSelectedDays] = useState<number[]>([0, 1, 2, 3, 4, 5, 6]);
-  
+  const [selectedDays, setSelectedDays] = useState<number[]>([
+    0, 1, 2, 3, 4, 5, 6,
+  ]);
+
   const daysOfWeek = [
     { id: 0, name: "Sunday" },
     { id: 1, name: "Monday" },
@@ -62,13 +64,13 @@ const Register: React.FC<RegisterProps> = ({ onRegisterSuccess }) => {
     { id: 3, name: "Wednesday" },
     { id: 4, name: "Thursday" },
     { id: 5, name: "Friday" },
-    { id: 6, name: "Saturday" }
+    { id: 6, name: "Saturday" },
   ];
-  
+
   const handleDayToggle = (dayId: number) => {
-    setSelectedDays(prev => {
+    setSelectedDays((prev) => {
       if (prev.includes(dayId)) {
-        return prev.filter(id => id !== dayId);
+        return prev.filter((id) => id !== dayId);
       } else {
         return [...prev, dayId].sort();
       }
@@ -115,7 +117,7 @@ const Register: React.FC<RegisterProps> = ({ onRegisterSuccess }) => {
     return {
       days: selectedDays,
       openTime,
-      closeTime
+      closeTime,
     };
   };
 
@@ -146,7 +148,7 @@ const Register: React.FC<RegisterProps> = ({ onRegisterSuccess }) => {
           email,
           contactNumber,
           mapsLink,
-          operatingHours
+          operatingHours,
         }),
         {
           headers: { "Content-Type": "application/json" },
@@ -166,7 +168,7 @@ const Register: React.FC<RegisterProps> = ({ onRegisterSuccess }) => {
       setEmail("");
       setContactNumber("");
       setMapsLink("");
-    }catch (err) {
+    } catch (err) {
       const error = err as AxiosError<{ msg?: string }>; // Define expected response structure
       if (!error?.response) {
         setErrMsg("No Server Response");
@@ -174,11 +176,12 @@ const Register: React.FC<RegisterProps> = ({ onRegisterSuccess }) => {
         setErrMsg("Name Taken");
       } else {
         console.error("Registration error:", error.response?.data);
-        setErrMsg(`Registration Failed: ${error.response?.data?.msg || "Unknown error"}`);
+        setErrMsg(
+          `Registration Failed: ${error.response?.data?.msg || "Unknown error"}`
+        );
       }
       errRef.current?.focus();
     }
-    
   };
 
   return (
@@ -305,15 +308,18 @@ const Register: React.FC<RegisterProps> = ({ onRegisterSuccess }) => {
                       </p>
                     )}
                 </div>
-
                 {/* New maps link field */}
                 <div className="form-group">
                   <label htmlFor="mapsLink">
-                    Google Maps URL <a
-                        href="https://www.google.co.in/maps/preview"
-                        style={{ color: "blue", textDecoration: "underline" }}
-                      >https://www.google.co.in/maps/preview
-                      </a>
+                    Google Maps URL{" "}
+                    <a
+                      href="https://www.google.co.in/maps/preview"
+                      style={{ color: "blue", textDecoration: "underline" }}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      https://www.google.co.in/maps/preview
+                    </a>
                     {mapsLink && (
                       <span className="validation-icon">
                         <FontAwesomeIcon
@@ -341,9 +347,10 @@ const Register: React.FC<RegisterProps> = ({ onRegisterSuccess }) => {
                       <FontAwesomeIcon icon={faInfoCircle} />
                       Please enter a valid Google Maps URL. <br />
                       Follow the following steps:- <br />
-                      1. Open Google Maps on web browser ( link given above ).<br />
-                      2. Stay on web and search your location. <br />
-                      3. Copy the url from browser and paste here. <br />
+                      1. Open Google Maps on a web browser (link given above).
+                      <br />
+                      2. Stay on the web and search your location. <br />
+                      3. Copy the URL from the browser and paste it here. <br />
                     </p>
                   )}
                 </div>
@@ -382,7 +389,7 @@ const Register: React.FC<RegisterProps> = ({ onRegisterSuccess }) => {
                     {daysOfWeek.map((day) => (
                       <div key={day.id} className="day-checkbox">
                         <label htmlFor={`day-${day.id}`}>{day.name}</label>
-                        
+
                         <input
                           type="checkbox"
                           id={`day-${day.id}`}
