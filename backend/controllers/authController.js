@@ -207,7 +207,7 @@ const updateProfile = async (req, res) => {
     }
     
     const userId = req.user._id; // Get user ID from the authenticated request
-    const { name, contactNumber, mapsLink, operatingHours } = req.body;
+    const { name, contactNumber, mapsLink, email, operatingHours } = req.body;
 
     // Check if the user exists
     let user = await User.findById(userId);
@@ -223,18 +223,64 @@ const updateProfile = async (req, res) => {
     let longitude = user.longitude;
 
     if (mapsLink && mapsLink !== user.mapsLink) {
-      const mapsRegex = /@([-+]?\d*\.\d+),([-+]?\d*\.\d+)/;
-      const match = mapsLink.match(mapsRegex);
+      try {
+        const mapsRegex = /@([-+]?\d*\.\d+),([-+]?\d*\.\d+)/;
+        const match = mapsLink.match(mapsRegex);
 
-      if (!match) {
+        if (!match) {
+          return res.status(400).json({
+            success: false,
+            msg: "Invalid maps link! Please use a valid Google Maps link with coordinates.",
+          });
+        }
+
+        latitude = parseFloat(match[1]);
+        longitude = parseFloat(match[2]);
+        
+        // Validate the coordinates are within valid range
+        if (isNaN(latitude) || latitude < -90 || latitude > 90 || 
+            isNaN(longitude) || longitude < -180 || longitude > 180) {
+          return res.status(400).json({
+            success: false,
+            msg: "Invalid coordinates in maps link.",
+          });
+        }
+      } catch (error) {
+        console.error("Maps link parsing error:", error);
         return res.status(400).json({
           success: false,
-          msg: "Invalid maps link! Please use a valid Google Maps link.",
+          msg: "Could not parse coordinates from maps link.",
         });
       }
+    }
 
-      latitude = parseFloat(match[1]);
-      longitude = parseFloat(match[2]);
+    // Log the operating hours to check format
+    console.log("Operating hours received:", operatingHours);
+
+    // Validate operating hours if provided
+    if (operatingHours) {
+      if (typeof operatingHours !== 'object') {
+        return res.status(400).json({
+          success: false,
+          msg: "Operating hours must be an object.",
+        });
+      }
+      
+      if (!Array.isArray(operatingHours.days)) {
+        return res.status(400).json({
+          success: false,
+          msg: "Operating days must be an array.",
+        });
+      }
+      
+      // Validate time format
+      const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
+      if (!timeRegex.test(operatingHours.open) || !timeRegex.test(operatingHours.close)) {
+        return res.status(400).json({
+          success: false,
+          msg: "Operating hours must be in HH:MM format.",
+        });
+      }
     }
 
     // Update user details
@@ -243,7 +289,20 @@ const updateProfile = async (req, res) => {
     user.mapsLink = mapsLink || user.mapsLink;
     user.latitude = latitude;
     user.longitude = longitude;
-    user.operatingHours = operatingHours || user.operatingHours;
+    
+    // Update email if provided
+    if (email !== undefined) {
+      user.email = email;
+    }
+
+    // Update operating hours if provided
+    if (operatingHours) {
+      user.operatingHours = {
+        open: operatingHours.open || user.operatingHours?.open,
+        close: operatingHours.close || user.operatingHours?.close,
+        days: operatingHours.days || user.operatingHours?.days,
+      };
+    }
 
     // Save the updated user data
     const updatedUser = await user.save();
