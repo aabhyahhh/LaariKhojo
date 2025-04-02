@@ -40,14 +40,7 @@ app.use(
 );
 const server = http.createServer(app);
 
-// Apply conditional JSON parsing middleware
-app.use((req, res, next) => {
-  if (["POST", "PUT", "PATCH"].includes(req.method)) {
-    express.json()(req, res, next);
-  } else {
-    next();
-  }
-});
+app.use(express.json());
 
 // MongoDB Connection
 mongoose.connect(MONGOURI, {
@@ -87,7 +80,6 @@ app.get("/api/expand-url", async (req, res) => {
 });
 
 
-// Add this endpoint to your Express server
 app.get("/api/all-users", async (req, res) => {
   try {
     const vendors = await VendorModel.find({});
