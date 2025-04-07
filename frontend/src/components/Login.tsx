@@ -2,7 +2,9 @@ import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import "./Login.css";
 import { Link } from "react-router-dom";
-import { API_URL } from "../api/config"; // Import from centralized config
+
+// Update this to your proxy URL if using the proxy solution
+const API_URL = "https://laari-khojo-backend.onrender.com";
 
 interface LoginProps {
   onLoginSuccess?: (token: string) => void;
@@ -26,13 +28,14 @@ function Login({ onLoginSuccess, redirectPath = "/update-profile" }: LoginProps)
     setLoading(true);
 
     try {
-      console.log(`Attempting login to ${API_URL}/api/login with:`, { email });
+      console.log("Attempting login with:", { email }); // Don't log passwords
       
       const response = await fetch(`${API_URL}/api/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
+        credentials: "include", // Include cookies if your backend uses them
         body: JSON.stringify({ email, password }),
       });
 
@@ -42,21 +45,16 @@ function Login({ onLoginSuccess, redirectPath = "/update-profile" }: LoginProps)
       console.log("Response data:", data);
 
       if (!response.ok) {
-        throw new Error(data.message || data.msg || "Login failed");
+        throw new Error(data.message || "Login failed");
       }
 
-      // Store token in localStorage (adjust property name if needed)
-      const token = data.accessToken || data.token;
-      if (!token) {
-        throw new Error("No token received from server");
-      }
-      
+      // Store token in localStorage
       console.log("Login successful, token received");
-      localStorage.setItem("token", token);
+      localStorage.setItem("token", data.accessToken);
 
       // Call the success callback if provided
       if (onLoginSuccess) {
-        onLoginSuccess(token);
+        onLoginSuccess(data.accessToken);
       } else {
         // Only navigate directly if onLoginSuccess is not provided
         navigate(from);
@@ -67,7 +65,7 @@ function Login({ onLoginSuccess, redirectPath = "/update-profile" }: LoginProps)
       if (err instanceof Error) {
         setError(err.message);
       } else {
-        setError("Login failed - server unavailable");
+        setError("Login failed - CORS issue or server unavailable");
       }
     } finally {
       setLoading(false);
