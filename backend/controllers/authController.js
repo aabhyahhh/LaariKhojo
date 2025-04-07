@@ -275,7 +275,7 @@ const updateProfile = async (req, res) => {
       
       // Validate time format
       const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
-      if (!timeRegex.test(operatingHours.open) || !timeRegex.test(operatingHours.close)) {
+      if (!timeRegex.test(operatingHours.openTime) || !timeRegex.test(operatingHours.closeTime)) {
         return res.status(400).json({
           success: false,
           msg: "Operating hours must be in HH:MM format.",
@@ -298,8 +298,8 @@ const updateProfile = async (req, res) => {
     // Update operating hours if provided
     if (operatingHours) {
       user.operatingHours = {
-        open: operatingHours.open || user.operatingHours?.open,
-        close: operatingHours.close || user.operatingHours?.close,
+        openTime: operatingHours.openTime || user.operatingHours?.openTime,
+        closeTime: operatingHours.closeTime || user.operatingHours?.closeTime,
         days: operatingHours.days || user.operatingHours?.days,
       };
     }
