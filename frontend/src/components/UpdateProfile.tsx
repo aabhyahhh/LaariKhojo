@@ -5,8 +5,8 @@ import Header from "./Header";
 import { API_URL } from "../api/config";
 
 interface OperatingHours {
-  open: string;
-  close: string;
+  openTime: string;
+  closeTime: string;
   days: number[];
 }
 
@@ -75,8 +75,8 @@ function UpdateProfile() {
           setMapsLink(profile.mapsLink || "");
           
           if (profile.operatingHours) {
-            setOpenTime(profile.operatingHours.open || "08:00");
-            setCloseTime(profile.operatingHours.close || "18:00");
+            setOpenTime(profile.operatingHours.openTime || "08:00");
+            setCloseTime(profile.operatingHours.closeTime || "18:00");
             setSelectedDays(profile.operatingHours.days || [0, 1, 2, 3, 4, 5, 6]);
           }
         }
@@ -110,13 +110,13 @@ function UpdateProfile() {
     }
 
     const operatingHours = {
-      open: openTime,
-      close: closeTime,
+      openTime: openTime,
+      closeTime: closeTime,
       days: selectedDays
     };
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_REACT_APP_BASEURL}/api/update-profile`, {
+      const response = await fetch(`${API_URL}/api/update-profile`, {
         method: "PUT",
         headers: {
           "Authorization": `Bearer ${token}`,
