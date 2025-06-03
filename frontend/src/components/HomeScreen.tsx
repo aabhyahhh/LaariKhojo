@@ -12,7 +12,7 @@ const HomeScreen: React.FC = () => {
       <div className="hero-section">
         <div className="overlay">
           <div className="hero-content">
-            <h1>Welcome to Laari Khojo</h1>
+            <h1>Welcome to BazaarScout</h1>
             <button 
               className="explore-btn"
               onClick={() => navigate('/map')}
