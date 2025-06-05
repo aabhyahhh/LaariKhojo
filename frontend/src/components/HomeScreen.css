@@ -5,86 +5,408 @@
   font-family: Helvetica, Arial, sans-serif;
 }
 
+/* Styles for the Home Screen */
+
 .home-container {
-    width: 100%;
-    height: 100vh;
-    position: relative;
+  /* The background and overall layout for the hero section are handled here */
+  width: 100%;
+  min-height: 100vh; /* Ensure it takes at least the full viewport height */
+  background: linear-gradient(to bottom, #f4f4f4 0%, #dcdcdc 100%); /* Light grey gradient background from image */
+  position: relative; /* Needed for absolute positioning of background elements */
+  overflow: hidden; /* Hide anything outside the container */
+  display: flex; /* Use flexbox to structure content vertically */
+  flex-direction: column;
+  align-items: center; /* Center content horizontally */
+
+  /* Adding subtle background elements based on the image */
+  /* Dotted pattern */
+  background-image: radial-gradient(#a0a0a0 1px, transparent 1px),
+                    radial-gradient(#a0a0a0 1px, transparent 1px);
+  background-size: 40px 40px; /* Adjust spacing of dots */
+  background-position: 0 0, 20px 20px; /* Offset for a staggered pattern */
+  /* Crosses are harder with pure CSS, might need pseudo-elements or background images */
+  /* Consider adding these as absolutely positioned elements or background images */
+}
+
+/* Container for the main hero text content and button */
+.hero-content-container {
+  flex-grow: 1; /* Allows this section to take up remaining vertical space */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center; /* Center content vertically in the available space */
+  text-align: center;
+  padding: 100px 20px; /* Add padding, adjust top padding to account for header */
+  z-index: 0; /* Ensure content is below the header */
+  position: relative; /* Needed for z-index to work */
+}
+
+.hero-subtitle {
+  font-size: 1rem; /* Adjust size */
+  color: #006400; /* Dark green color from image */
+  margin-bottom: 5px;
+  font-weight: bold;
+}
+
+.hero-title {
+  font-size: 4rem; /* Large title size from image */
+  color: #1a1a1a; /* Dark text color from image */
+  margin-bottom: 15px;
+  font-weight: bold;
+}
+
+.hero-description {
+  font-size: 1.2rem; /* Description text size from image */
+  color: #333; /* Slightly lighter dark text */
+  margin-bottom: 30px;
+}
+
+.get-started-btn {
+  background-color: #1a1a1a; /* Dark background matching header */
+  color: white; /* White text */
+  padding: 12px 25px; /* Adjust padding */
+  border-radius: 25px; /* Rounded button */
+  text-decoration: none; /* Remove underline if it's an <a> */
+  font-size: 1.1rem;
+  font-weight: bold;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px; /* Space between text and arrow */
+  transition: background-color 0.3s ease;
+  border: none; /* Ensure no default button border */
+}
+
+.get-started-btn:hover {
+  background-color: #333; /* Darker hover effect */
+}
+
+.get-started-btn svg {
+  width: 16px;
+  height: 16px;
+  fill: white;
+}
+
+/* --- Image Section Styles --- */
+.image-section {
+  position: relative;
+  width: 100%;
+  height: 60vh;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.image-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+}
+
+.image-overlay img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+/* Dark overlay for text legibility */
+.image-overlay::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.3) 0%,
+    rgba(0, 0, 0, 0.5) 50%,
+    rgba(0, 0, 0, 0.7) 100%
+  );
+  transition: opacity 0.3s ease;
+  z-index: 2;
+}
+
+.image-content {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 3;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  padding: 30px;
+  transition: all 0.3s ease;
+}
+
+.image-section-title {
+  font-size: 2.5rem;
+  color: white;
+  margin: 0;
+  flex-grow: 1;
+  text-align: left;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+  transition: all 0.3s ease;
+}
+
+.image-section-text {
+  font-size: 1.2rem;
+  color: white;
+  margin: 0;
+  text-align: right;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+  transition: all 0.3s ease;
+}
+
+/* Hover Effects */
+.image-section:hover .image-overlay::after {
+  opacity: 0;
+}
+
+.image-section:hover .image-overlay img {
+  transform: scale(1.05);
+}
+
+.image-section:hover .image-content {
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .image-section {
+    height: 40vh;
   }
-  
-  .hero-section {
-    width: 100%;
-    height: 100vh;
-    background-image: url('../assets/homescreen-bg.png'); /* You'll need to add this image to your assets */
-    background-size: cover;
-    background-position: center;
-    position: relative;
-  }
-  
-  .overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(122, 79, 79, 0.5); /* Dark overlay for better text visibility */
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    text-align: center;
-  }
-  
-  .hero-content {
-    z-index: 10;
-    max-width: 800px;
+
+  .image-content {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
     padding: 20px;
   }
-  
-  .hero-content h1 {
-    font-size: 3rem;
-    font-weight: 600;
-    color: white;
-    margin-bottom: 30px;
-    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.6);
+
+  .image-section-title {
+    font-size: 2rem;
+    text-align: left;
   }
-  
-  .explore-btn {
-    background-color: #Fb5d51;
-    color: white;
-    border: 2px solid #Fb5d51;
-    padding: 12px 36px;
-    font-size: 1.2rem;
-    border-radius: 30px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    backdrop-filter: blur(5px);
+
+  .image-section-text {
+    font-size: 1rem;
+    text-align: left;
   }
-  
-  .explore-btn:hover {
-    background-color: rgba(255, 255, 255, 0.5);
-    color: #Fb5d51;
-    transform: translateY(-3px);
-    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+}
+
+@media (max-width: 480px) {
+  .image-section-title {
+    font-size: 1.5rem;
   }
-  
-  .explore-btn:active {
-    transform: translateY(-1px);
-    box-shadow: 0 5px 10px rgba(0, 0, 0, 0.2);
+
+  .image-section-text {
+    font-size: 0.9rem;
   }
-  
-  /* Responsive styles */
-  @media (max-width: 768px) {
-    .hero-content h1 {
-      font-size: 2.5rem;
-    }
-    
-    .explore-btn {
-      padding: 10px 30px;
-      font-size: 1rem;
-    }
+}
+
+/* --- Statistics Section Styles --- */
+.stats-section {
+  width: 100%;
+  display: flex;
+  justify-content: space-around;
+  padding: 40px 20px;
+  background-color: #f4f4f4; /* Matching the background of the section in the image */
+  border-bottom: 1px solid #dcdcdc; /* Border like in the image */
+}
+
+.stat-item {
+  text-align: center;
+}
+
+.stat-number {
+  font-size: 2.5rem; /* Adjust size to match image */
+  font-weight: bold;
+  color: #1a1a1a; /* Dark text color */
+  margin-bottom: 5px;
+}
+
+.stat-description {
+  font-size: 1rem; /* Adjust size to match image */
+  color: #555; /* Slightly lighter text */
+}
+
+/* --- Text Block Section Styles --- */
+.text-block-section {
+  width: 100%;
+  display: flex;
+  padding: 80px 40px;
+  background-color: #fafafa;
+  align-items: flex-start;
+  gap: 80px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* Accessibility and reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .keyword,
+  .text-block-title {
+    transition: none;
+    animation: none;
   }
+}
+
+.text-block-left {
+  flex: 0.3; /* Reduced from 1 to 0.3 for smaller proportion */
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+  align-items: flex-start; /* Changed from center to flex-start */
+  margin-top: 20px;
+  min-width: 200px;
+}
+
+.text-block-year {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: #1a1a1a;
+  letter-spacing: -0.02em;
+}
+
+.text-block-keywords {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.text-block-right {
+  flex: 0.7; /* Increased from 2 to 0.7 for better proportion balance */
+  padding-left: 20px;
   
-  @media (max-width: 480px) {
-    .hero-content h1 {
-      font-size: 2rem;
-    }
+}
+
+.text-block-title {
+  font-size: 45px; /* Increased for better prominence */
+  font-weight: 800;
+  color: #1a1a1a;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+  margin: 0;
+}
+
+.keyword {
+  cursor: pointer;
+  padding: 12px 0;
+  border-radius: 6px;
+  transition: all 0.4s ease;
+  border: none;
+  position: relative;
+  overflow: hidden;
+  font-size: 1rem;
+  font-weight: 500;
+  color: #666;
+  background: none;
+  text-align: left;
+  width: 100%;
+}
+
+.keyword:hover {
+  color: #333;
+  transform: translateX(5px);
+}
+
+.keyword.active {
+  color: #000;
+  font-weight: 700;
+  transform: translateX(5px);
+}
+
+/* Smooth transition for the text content */
+.text-block-title {
+  transition: opacity 0.5s ease, transform 0.5s ease;
+  animation: fadeInUp 0.6s ease-out;
+}
+
+/* Animation for content changes */
+@keyframes fadeInUp {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
   }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive adjustments for text block */
+@media (max-width: 968px) {
+  .text-block-section {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 40px;
+    padding: 60px 30px;
+  }
+
+  .text-block-left,
+  .text-block-right {
+    flex: none;
+    width: 100%;
+  }
+
+  .text-block-left {
+    align-items: flex-start;
+  }
+
+  .text-block-keywords {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 30px;
+  }
+
+  .text-block-title {
+    font-size: 2.8rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .text-block-section {
+    padding: 50px 20px;
+    gap: 30px;
+  }
+
+  .text-block-title {
+    font-size: 2.2rem;
+  }
+
+  .text-block-year {
+    font-size: 1.5rem;
+  }
+
+  .keyword {
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .text-block-title {
+    font-size: 1.8rem;
+    line-height: 1.2;
+  }
+
+  .text-block-year {
+    font-size: 1.3rem;
+  }
+
+  .keyword {
+    font-size: 0.85rem;
+    padding: 10px 0;
+  }
+
+  .text-block-keywords {
+    gap: 15px;
+  }
+}

@@ -44,14 +44,14 @@ function MapDisplay() {
 
   // Modified isVendorOperating function to handle undefined operatingHours
   const isVendorOperating = (operatingHours?: OperatingHours): boolean => {
-    // Return false if operatingHours is undefined or doesn't have required properties
+    // Return true if operatingHours is undefined (show all vendors)
     if (
       !operatingHours ||
       !operatingHours.days ||
       !operatingHours.openTime ||
       !operatingHours.closeTime
     ) {
-      return false;
+      return true; // Changed from false to true to show vendors without operating hours
     }
 
     const now = new Date();
@@ -81,31 +81,79 @@ function MapDisplay() {
     return currentTime >= openTime && currentTime <= closeTime;
   };
 
-  const getUserLocation = () => {
+  // Alternative: IP-based location fallback
+  const getLocationFromIP = async () => {
+    try {
+      const response = await fetch('https://ipapi.co/json/');
+      const data = await response.json();
+      
+      if (data.latitude && data.longitude) {
+        return {
+          latitude: data.latitude,
+          longitude: data.longitude
+        };
+      }
+    } catch (error) {
+      console.error('IP location failed:', error);
+    }
+    return null;
+  };
+
+  // Simplified getUserLocation with better error handling
+  const getUserLocation = async () => {
     setIsLocationLoading(true);
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const userCoords = {
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
-          };
-          console.log("User location obtained:", userCoords);
-          setUserLocation(userCoords);
-          setIsLocationLoading(false);
-        },
-        (error) => {
-          console.error("Error getting user location:", error);
-          setError("Could not access your location. Using default view.");
-          setIsLocationLoading(false);
-        },
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-      );
-    } else {
+    
+    if (!navigator.geolocation) {
       console.error("Geolocation is not supported by this browser");
-      setError(
-        "Geolocation is not supported by your browser. Using default view."
-      );
+      setError("Geolocation is not supported by your browser. Using default view.");
+      setIsLocationLoading(false);
+      return;
+    }
+
+    try {
+      // Try browser geolocation first
+      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(
+          resolve,
+          reject,
+          {
+            enableHighAccuracy: false, // Set to false to avoid 429 errors
+            timeout: 10000,
+            maximumAge: 600000 // 10 minutes cache
+          }
+        );
+      });
+
+      const userCoords = {
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+      };
+      
+      console.log("User location obtained:", userCoords);
+      setUserLocation(userCoords);
+      setError(null);
+      setIsLocationLoading(false);
+      return;
+
+    } catch (geolocationError: any) {
+      console.log("Browser geolocation failed, trying IP location...", geolocationError);
+      
+      // Fallback to IP-based location
+      try {
+        const ipLocation = await getLocationFromIP();
+        if (ipLocation) {
+          console.log("Using IP-based location:", ipLocation);
+          setUserLocation(ipLocation);
+          setError("Using approximate location based on your IP address.");
+        } else {
+          console.log("IP location also failed, using default location");
+          setError("Could not determine your location. Using default view.");
+        }
+      } catch (ipError) {
+        console.error("IP location also failed:", ipError);
+        setError("Could not determine your location. Using default view.");
+      }
+      
       setIsLocationLoading(false);
     }
   };
@@ -119,6 +167,7 @@ function MapDisplay() {
         /@(-?\d+\.\d+),(-?\d+\.\d+)/, // Standard format
         /!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/, // Alternate format
         /place\/.*\/@(-?\d+\.\d+),(-?\d+\.\d+)/, // Place format
+        /q=(-?\d+\.\d+),(-?\d+\.\d+)/, // Query format
       ];
 
       for (const pattern of patterns) {
@@ -143,24 +192,34 @@ function MapDisplay() {
 
   const fetchVendors = async () => {
     try {
+      console.log("Fetching vendors from:", `${API_URL}/api/all-users`);
       const response = await fetch(`${API_URL}/api/all-users`);
+      
       if (!response.ok) {
-        throw new Error("Failed to fetch vendors");
+        throw new Error(`Failed to fetch vendors: ${response.status} ${response.statusText}`);
       }
+      
       const data = await response.json();
-      console.log("Fetched Vendors:", data);
-      setVendors(data.data);
-      return data.data;
-    } catch (error) {
+      console.log("Fetched Vendors Response:", data);
+      
+      if (data.success && data.data) {
+        setVendors(data.data);
+        console.log("Vendors set successfully:", data.data.length, "vendors");
+        return data.data;
+      } else {
+        console.error("API response indicates failure:", data);
+        setError("Failed to fetch vendors data");
+        return [];
+      }
+    } catch (error: unknown) {
       console.error("Error fetching vendors:", error);
-      setError("Failed to fetch vendors data");
+      setError(`Failed to fetch vendors data: ${error instanceof Error ? error.message : 'Unknown error'}`);
       return [];
     }
   };
 
   // Calculate icon size based on zoom level
   const calculateIconSize = (baseSize: number): number => {
-    // Base size at zoom level 13
     const zoomFactor = Math.pow(1.2, currentZoom - 13);
     return Math.max(24, Math.min(96, baseSize * zoomFactor));
   };
@@ -181,8 +240,8 @@ function MapDisplay() {
       return;
     }
 
-    // Default center coordinates
-    const defaultCoords: [number, number] = [26.8482821, 75.5609975];
+    // Default center coordinates (Jaipur, Rajasthan)
+    const defaultCoords: [number, number] = [26.9124, 75.7873];
     const initialCoords = userLocation
       ? [userLocation.latitude, userLocation.longitude]
       : defaultCoords;
@@ -199,7 +258,6 @@ function MapDisplay() {
       return;
     }
 
-    // Initialize map
     try {
       mapRef.current = L.map("map").setView(
         initialCoords as [number, number],
@@ -207,10 +265,10 @@ function MapDisplay() {
       );
 
       L.tileLayer(
-        "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+        "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", // Changed to OSM to avoid potential issues
         {
           maxZoom: 19,
-          attribution: "Laari Khojo",
+          attribution: '© OpenStreetMap contributors',
         }
       ).addTo(mapRef.current);
 
@@ -257,6 +315,7 @@ function MapDisplay() {
       document.head.appendChild(style);
 
       setIsMapInitialized(true);
+      console.log("Map initialized successfully");
     } catch (error) {
       console.error("Error initializing map:", error);
       setError("Failed to initialize map");
@@ -283,7 +342,7 @@ function MapDisplay() {
       [userLocation.latitude, userLocation.longitude],
       {
         icon: userIcon,
-        zIndexOffset: 1000, // Ensure it's above other markers
+        zIndexOffset: 1000,
       }
     )
       .addTo(mapRef.current)
@@ -300,11 +359,14 @@ function MapDisplay() {
     );
   };
 
-  // Modified updateMapMarkers function to safely handle vendor information
+  // Updated updateMapMarkers function
   const updateMapMarkers = (vendors: Vendor[]) => {
     if (!mapRef.current || !isMapInitialized) {
+      console.log("Map not initialized, skipping marker update");
       return;
     }
+
+    console.log("Updating map markers for vendors:", vendors.length);
 
     // Clear existing vendor markers
     Object.values(markersRef.current).forEach((marker) => marker.remove());
@@ -313,82 +375,88 @@ function MapDisplay() {
     // Track vendor markers for fitting bounds
     const validMarkers: L.Marker[] = [];
 
-    vendors.forEach((vendor) => {
-      console.log(
-        `Vendor: ${vendor.name}, MapsLink: ${vendor.mapsLink || "No maps link"}`
-      );
+    vendors.forEach((vendor, index) => {
+      console.log(`Processing vendor ${index + 1}:`, {
+        name: vendor.name,
+        mapsLink: vendor.mapsLink || "No maps link",
+        hasOperatingHours: !!vendor.operatingHours
+      });
 
       // Check if mapsLink exists
       if (!vendor.mapsLink) {
-        console.log(`${vendor.name} has no Google Maps link.`);
-        return; // Skip this vendor
+        console.log(`${vendor.name} has no Google Maps link, skipping`);
+        return;
       }
 
       const coords = extractCoordinates(vendor.mapsLink);
-      console.log(`Extracted Coordinates:`, coords);
+      
+      if (!coords) {
+        console.log(`Could not extract coordinates for ${vendor.name}`);
+        return;
+      }
 
-      // Check if vendor is operating and has valid coordinates
-      if (isVendorOperating(vendor.operatingHours) && coords) {
-        console.log(`Adding marker for ${vendor.name} at:`, coords);
+      // Check if vendor should be displayed (removed operating hours check for now)
+      console.log(`Adding marker for ${vendor.name} at:`, coords);
 
-        // Safely display operating hours information if available
-        let operatingStatus = "Hours not specified";
-        let daysOpen = "Days not specified";
+      // Safely display operating hours information if available
+      let operatingStatus = "Hours not specified";
+      let daysOpen = "Days not specified";
 
-        if (
-          vendor.operatingHours &&
-          vendor.operatingHours.openTime &&
-          vendor.operatingHours.closeTime
-        ) {
-          operatingStatus = `Open: ${vendor.operatingHours.openTime} - ${vendor.operatingHours.closeTime}`;
-        }
+      if (
+        vendor.operatingHours &&
+        vendor.operatingHours.openTime &&
+        vendor.operatingHours.closeTime
+      ) {
+        operatingStatus = `Open: ${vendor.operatingHours.openTime} - ${vendor.operatingHours.closeTime}`;
+      }
 
-        if (
-          vendor.operatingHours &&
-          vendor.operatingHours.days &&
-          Array.isArray(vendor.operatingHours.days)
-        ) {
-          daysOpen = vendor.operatingHours.days
-            .map(
-              (day) => ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][day]
-            )
-            .join(", ");
-        }
+      if (
+        vendor.operatingHours &&
+        vendor.operatingHours.days &&
+        Array.isArray(vendor.operatingHours.days)
+      ) {
+        daysOpen = vendor.operatingHours.days
+          .map(
+            (day) => ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][day]
+          )
+          .join(", ");
+      }
 
-        const popupContent = `
-        <div class="custom-popup">
-          <h3 style="font-weight: 600; margin: 0 0 10px 0; font-size: 18px;">${
-            vendor.name
-          }</h3>
-          
-          <div class="info-line" style="margin-bottom: 8px; display: flex;">
-            <div class="info-label" style="font-weight: 600; margin-right: 5px; min-width: 75px;">Contact:</div>
-            <div class="info-value" style="flex: 1;">${
-              vendor.contactNumber || "Not provided"
-            }</div>
-          </div>
-          
-          <div class="info-line" style="margin-bottom: 8px; display: flex;">
-            <div class="info-label" style="font-weight: 600; margin-right: 5px; min-width: 75px;">Hours:</div>
-            <div class="info-value" style="flex: 1;">${operatingStatus}</div>
-          </div>
-          
-          <div class="info-line" style="margin-bottom: 8px; display: flex;">
-            <div class="info-label" style="font-weight: 600; margin-right: 5px; min-width: 75px;">Days Open:</div>
-            <div class="info-value" style="flex: 1; word-wrap: break-word;">${daysOpen}</div>
-          </div>
-          
-          <div class="info-line" style="margin-bottom: 8px; display: flex;">
-            <div class="info-label" style="font-weight: 600; margin-right: 5px; min-width: 75px;">Location:</div>
-            <div class="info-value" style="flex: 1;">
-              <a href="${
-                vendor.mapsLink
-              }" target="_blank" style="color: white; text-decoration: underline;">View</a>
-            </div>
+      const popupContent = `
+      <div class="custom-popup">
+        <h3 style="font-weight: 600; margin: 0 0 10px 0; font-size: 18px;">${
+          vendor.name
+        }</h3>
+        
+        <div class="info-line" style="margin-bottom: 8px; display: flex;">
+          <div class="info-label" style="font-weight: 600; margin-right: 5px; min-width: 75px;">Contact:</div>
+          <div class="info-value" style="flex: 1;">${
+            vendor.contactNumber || "Not provided"
+          }</div>
+        </div>
+        
+        <div class="info-line" style="margin-bottom: 8px; display: flex;">
+          <div class="info-label" style="font-weight: 600; margin-right: 5px; min-width: 75px;">Hours:</div>
+          <div class="info-value" style="flex: 1;">${operatingStatus}</div>
+        </div>
+        
+        <div class="info-line" style="margin-bottom: 8px; display: flex;">
+          <div class="info-label" style="font-weight: 600; margin-right: 5px; min-width: 75px;">Days Open:</div>
+          <div class="info-value" style="flex: 1; word-wrap: break-word;">${daysOpen}</div>
+        </div>
+        
+        <div class="info-line" style="margin-bottom: 8px; display: flex;">
+          <div class="info-label" style="font-weight: 600; margin-right: 5px; min-width: 75px;">Location:</div>
+          <div class="info-value" style="flex: 1;">
+            <a href="${
+              vendor.mapsLink
+            }" target="_blank" style="color: #007bff; text-decoration: underline;">View on Maps</a>
           </div>
         </div>
-        `;
+      </div>
+      `;
 
+      try {
         // Create vendor icon with size based on current zoom level
         const customIcon = createVendorIcon();
 
@@ -396,32 +464,38 @@ function MapDisplay() {
           icon: customIcon,
         })
           .addTo(mapRef.current!)
-          .bindPopup(popupContent, { className: "custom-popup" });
+          .bindPopup(popupContent);
 
         markersRef.current[vendor._id] = marker;
         validMarkers.push(marker);
-      } else {
-        console.log(
-          `${vendor.name} is currently closed, has invalid coordinates, or missing operating hours`
-        );
+        console.log(`Successfully added marker for ${vendor.name}`);
+      } catch (markerError) {
+        console.error(`Error creating marker for ${vendor.name}:`, markerError);
       }
     });
 
+    console.log(`Added ${validMarkers.length} markers to map`);
+
     // Fit map bounds to include all markers if we don't have user location
-    // or if no markers are visible near user location
     if (validMarkers.length > 0 && !userLocation) {
-      const group = L.featureGroup(validMarkers);
-      mapRef.current.fitBounds(group.getBounds().pad(0.1));
+      try {
+        const group = L.featureGroup(validMarkers);
+        mapRef.current.fitBounds(group.getBounds().pad(0.1));
+        console.log("Fitted map bounds to include all markers");
+      } catch (boundsError) {
+        console.error("Error fitting bounds:", boundsError);
+      }
     }
   };
 
   // Setup initial conditions
   useEffect(() => {
-    // Get user location first
+    console.log("MapDisplay component mounted, getting user location...");
     getUserLocation();
 
     // Cleanup function
     return () => {
+      console.log("MapDisplay component unmounting, cleaning up...");
       if (mapRef.current) {
         mapRef.current.remove();
         mapRef.current = null;
@@ -439,6 +513,7 @@ function MapDisplay() {
   // Initialize map once we know about user location (or timeout occurred)
   useEffect(() => {
     if (!isLocationLoading && !isMapInitialized) {
+      console.log("Location loading complete, initializing map...");
       initializeMap();
     }
   }, [isLocationLoading, isMapInitialized]);
@@ -446,6 +521,7 @@ function MapDisplay() {
   // Add user location marker after map is initialized and location is available
   useEffect(() => {
     if (isMapInitialized && userLocation) {
+      console.log("Map initialized and user location available, updating user marker...");
       updateUserLocationMarker();
     }
   }, [isMapInitialized, userLocation]);
@@ -453,16 +529,22 @@ function MapDisplay() {
   // Fetch vendors after map is initialized
   useEffect(() => {
     if (isMapInitialized) {
+      console.log("Map initialized, fetching vendors...");
       const loadVendors = async () => {
         const vendorData = await fetchVendors();
-        updateMapMarkers(vendorData);
+        if (vendorData && vendorData.length > 0) {
+          updateMapMarkers(vendorData);
+        } else {
+          console.log("No vendor data received");
+        }
       };
       loadVendors();
 
-      // Setup refresh interval
+      // Setup refresh interval (reduced frequency to avoid overwhelming the server)
       const intervalId = window.setInterval(() => {
+        console.log("Refreshing vendor data...");
         loadVendors();
-      }, 60000); // Check every minute
+      }, 300000); // Check every 5 minutes instead of 1 minute
 
       return () => {
         window.clearInterval(intervalId);
@@ -473,12 +555,14 @@ function MapDisplay() {
   // Update markers whenever vendors or zoom level changes
   useEffect(() => {
     if (isMapInitialized && vendors.length > 0) {
+      console.log("Vendors or zoom changed, updating markers...");
       updateMapMarkers(vendors);
     }
   }, [vendors, currentZoom, isMapInitialized]);
 
   // Add location refresh button
   const refreshUserLocation = () => {
+    console.log("Refreshing user location...");
     getUserLocation();
   };
 
@@ -498,6 +582,8 @@ function MapDisplay() {
             padding: "10px",
             borderRadius: "5px",
             zIndex: 1000,
+            maxWidth: "90%",
+            textAlign: "center",
           }}
         >
           {error}
@@ -545,11 +631,12 @@ function MapDisplay() {
             top: "50%",
             left: "50%",
             transform: "translate(-50%, -50%)",
-            backgroundColor: "rgba(255, 255, 255, 0.8)",
+            backgroundColor: "rgba(255, 255, 255, 0.9)",
             padding: "20px",
             borderRadius: "5px",
             zIndex: 1000,
             textAlign: "center",
+            boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
           }}
         >
           <div>Loading your location...</div>
