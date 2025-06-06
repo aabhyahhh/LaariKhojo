@@ -7,6 +7,7 @@ const http = require("http");
 const MONGOURI = process.env.MONGOURI;
 
 const authRoutes = require("./routes/authRoute");
+const webhookRoutes = require("./routes/webhookRoute");
 
 const allowedOrigins = [
   "https://laarikhojo.in",  // Without trailing slash
@@ -63,6 +64,7 @@ mongoose.connection.on("error", (err) => {
 
 
 app.use("/api", authRoutes);
+app.use("/api", webhookRoutes);
 
 
 
