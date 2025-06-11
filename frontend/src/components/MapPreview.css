@@ -1,6 +1,6 @@
 .map-preview-container {
     width: 100%;
-    max-width: 1200px;
+    max-width: 1500px;
     margin: 40px auto;
     padding: 20px;
     box-sizing: border-box;
@@ -55,7 +55,7 @@
   .map-preview-content {
     position: relative;
     width: 100%;
-    height: 400px;
+    height: 600px;
     background-color: #ffffff;
     border-radius: 16px;
     overflow: hidden;

@@ -229,9 +229,9 @@ function MapDisplay() {
     const size = calculateIconSize(64);
     return L.icon({
       iconUrl: laari,
-      iconSize: [size, size],
-      iconAnchor: [size / 4, size / 2],
-      popupAnchor: [0, -size / 2],
+      iconSize: [24, 24],
+      iconAnchor: [12, 24],
+      popupAnchor: [0, -24],
     });
   };
 
@@ -401,62 +401,58 @@ function MapDisplay() {
       // Check if vendor should be displayed (removed operating hours check for now)
       console.log(`Adding marker for ${vendor.name} at:`, coords);
 
-      // Safely display operating hours information if available
-      let operatingStatus = "Hours not specified";
-      let daysOpen = "Days not specified";
-
-      if (
-        vendor.operatingHours &&
-        vendor.operatingHours.openTime &&
-        vendor.operatingHours.closeTime
-      ) {
-        operatingStatus = `Open: ${vendor.operatingHours.openTime} - ${vendor.operatingHours.closeTime}`;
-      }
-
-      if (
-        vendor.operatingHours &&
-        vendor.operatingHours.days &&
-        Array.isArray(vendor.operatingHours.days)
-      ) {
-        daysOpen = vendor.operatingHours.days
-          .map(
-            (day) => ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][day]
-          )
-          .join(", ");
-      }
-
+      // Create popup content with icons and collapsible operating hours
       const popupContent = `
-      <div class="custom-popup">
-        <h3 style="font-weight: 600; margin: 0 0 10px 0; font-size: 18px;">${
-          vendor.name
-        }</h3>
-        
-        <div class="info-line" style="margin-bottom: 8px; display: flex;">
-          <div class="info-label" style="font-weight: 600; margin-right: 5px; min-width: 75px;">Contact:</div>
-          <div class="info-value" style="flex: 1;">${
-            vendor.contactNumber || "Not provided"
-          }</div>
+        <div class="custom-popup" style="font-size: 12px; line-height: 1.4; min-width: 200px;">
+          <h3 style="margin: 0 0 8px 0; font-size: 14px; font-weight: 600; color: #2c3e50;">${vendor.name}</h3>
+          
+          ${vendor.contactNumber ? `
+            <div style="display: flex; align-items: center; margin-bottom: 6px;">
+              <svg style="width: 14px; height: 14px; margin-right: 8px; color: #666;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+              </svg>
+              <span style="color: #666;">${vendor.contactNumber}</span>
+            </div>
+          ` : ''}
+
+          ${vendor.operatingHours ? `
+            <div style="margin-bottom: 6px;">
+              <div style="display: flex; align-items: center; cursor: pointer;" onclick="this.parentElement.querySelector('.hours-details').style.display = this.parentElement.querySelector('.hours-details').style.display === 'none' ? 'block' : 'none'">
+                <svg style="width: 14px; height: 14px; margin-right: 8px; color: #666;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+                <span style="color: #666; display: flex; align-items: center;">
+                  <span style="color: #28a745; margin-right: 4px;">●</span>
+                  Open Now
+                  <svg style="width: 12px; height: 12px; margin-left: 4px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                  </svg>
+                </span>
+              </div>
+              <div class="hours-details" style="display: none; margin-left: 22px; margin-top: 4px; padding-top: 4px; border-top: 1px solid #eee;">
+                <div style="color: #666; margin-bottom: 2px;">
+                  <strong>Hours:</strong> ${vendor.operatingHours.openTime} - ${vendor.operatingHours.closeTime}
+                </div>
+                <div style="color: #666;">
+                  <strong>Days:</strong> ${vendor.operatingHours.days.map((day: number) => 
+                    ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][day]
+                  ).join(', ')}
+                </div>
+              </div>
+            </div>
+          ` : ''}
+
+          ${vendor.mapsLink ? `
+            <div style="display: flex; align-items: center;">
+              <svg style="width: 14px; height: 14px; margin-right: 8px; color: #666;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                <circle cx="12" cy="10" r="3"></circle>
+              </svg>
+              <a href="${vendor.mapsLink}" target="_blank" style="color: #007bff; text-decoration: none; font-size: 12px;">View on Maps</a>
+            </div>
+          ` : ''}
         </div>
-        
-        <div class="info-line" style="margin-bottom: 8px; display: flex;">
-          <div class="info-label" style="font-weight: 600; margin-right: 5px; min-width: 75px;">Hours:</div>
-          <div class="info-value" style="flex: 1;">${operatingStatus}</div>
-        </div>
-        
-        <div class="info-line" style="margin-bottom: 8px; display: flex;">
-          <div class="info-label" style="font-weight: 600; margin-right: 5px; min-width: 75px;">Days Open:</div>
-          <div class="info-value" style="flex: 1; word-wrap: break-word;">${daysOpen}</div>
-        </div>
-        
-        <div class="info-line" style="margin-bottom: 8px; display: flex;">
-          <div class="info-label" style="font-weight: 600; margin-right: 5px; min-width: 75px;">Location:</div>
-          <div class="info-value" style="flex: 1;">
-            <a href="${
-              vendor.mapsLink
-            }" target="_blank" style="color: #007bff; text-decoration: underline;">View on Maps</a>
-          </div>
-        </div>
-      </div>
       `;
 
       try {
@@ -467,7 +463,10 @@ function MapDisplay() {
           icon: customIcon,
         })
           .addTo(mapRef.current!)
-          .bindPopup(popupContent);
+          .bindPopup(popupContent, {
+            maxWidth: 250,
+            className: 'custom-popup-container'
+          });
 
         markersRef.current[vendor._id] = marker;
         validMarkers.push(marker);
@@ -715,7 +714,7 @@ function App() {
         }}
         onClick={() => navigate('/')} // Add onClick handler to navigate to home
       >
-        <img src={logo} alt="Laari Logo" style={{ height: '70px' }} />
+        <img src={logo} alt="Laari Logo" style={{ height: '100px' }} />
       </div>
       <Routes>
         <Route path="/" element={<HomeScreen />} />

@@ -39,7 +39,7 @@
   padding: 100px 20px; /* Add padding, adjust top padding to account for header */
   z-index: 0; /* Ensure content is below the header */
   position: relative; /* Needed for z-index to work */
-  margin: 40px;
+  margin: 60px;
 }
 
 .hero-subtitle {

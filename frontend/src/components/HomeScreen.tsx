@@ -99,16 +99,52 @@ const HomeScreen: React.FC = () => {
 
   return (
     <div className="home-container">
+      {/* Instagram Logo */}
+      <a 
+        href="https://www.instagram.com/laari.khojo?igsh=MTFjeWQ3aGo5ZHM1cw==" 
+        target="_blank" 
+        rel="noopener noreferrer"
+        style={{
+          position: 'absolute',
+          top: '20px',
+          right: '20px',
+          zIndex: 1000,
+          textDecoration: 'none'
+        }}
+      >
+        <svg 
+          xmlns="http://www.w3.org/2000/svg" 
+          width="32" 
+          height="32" 
+          viewBox="0 0 24 24" 
+          fill="none" 
+          stroke="currentColor" 
+          strokeWidth="2" 
+          strokeLinecap="round" 
+          strokeLinejoin="round"
+          style={{ color: '#E1306C' }}
+        >
+          <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+          <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+          <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
+        </svg>
+      </a>
+
       {/* Hero Section Content */}
       <div className="hero-content-container">
-        <p className="hero-subtitle">• Discover Street Food Near You!</p>
-        <h1 className="hero-title">Laari Khojo</h1>
+      <div style={{ padding: "0 5px 5px 5px", fontSize: "20px" }}>
+         {/*} <p style={{ fontSize: "16px", color: "#555", marginBottom: "5px" }}>
+            <span style={{ marginRight: "5px" }}>📍</span>Showing vendors near your location
+          </p> */}
+          <p style={{ fontSize: "16px", color: "#e74c3c", fontWeight: "bold" }}><span style={{ marginRight: "5px" }}>📍</span>{vendors.length} vendors found near you</p>
+        </div>
+        <h1 className="hero-title">Your City, Your Swaad</h1>
         <p className="hero-description">Live & Local</p>
         <button
           className="get-started-btn"
           onClick={handleGetStartedClick}
         >
-          Get Started
+          Explore Now!
           {/* Arrow icon - using a simple SVG for now */}
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512">
             <path d="M438.6 278.6c12.5-12.5 12.5-32.8 0-45.3l-160-160c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3L338.7 224 32 224c-17.7 0-32 14.3-32 32s14.3 32 32 32l306.7 0L233.4 393.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0l160-160z"/>
@@ -117,8 +153,15 @@ const HomeScreen: React.FC = () => {
       </div>
 
       {/* Map Preview Section */}
-      <div style={{ width: "80%", maxWidth: "800px", margin: "20px auto", backgroundColor: "#f8f8f8", borderRadius: "12px", boxShadow: "0 10px 25px rgba(0, 0, 0, 0.1)" }}>
-        <div style={{ padding: "20px", borderBottom: "1px solid #eee", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <div style={{ 
+        width: "95%", 
+        maxWidth: "1200px", 
+        margin: "20px auto", 
+        backgroundColor: "#f8f8f8", 
+        borderRadius: "12px", 
+        boxShadow: "0 10px 25px rgba(0, 0, 0, 0.1)" 
+      }}>
+        {/* <div style={{ padding: "20px", borderBottom: "1px solid #eee", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <h1 style={{ fontSize: "32px", fontWeight: "bold", color: "#2c3e50", margin: "0" }}>Discover Vendors Nearby</h1>
           <button
             onClick={handleExpandMap}
@@ -138,13 +181,7 @@ const HomeScreen: React.FC = () => {
           >
             Expand Map <span style={{ fontSize: "20px", lineHeight: "1" }}>−</span>
           </button>
-        </div>
-        <div style={{ padding: "0 20px 20px 20px" }}>
-          <p style={{ fontSize: "16px", color: "#555", marginBottom: "5px" }}>
-            <span style={{ marginRight: "5px" }}>📍</span>Showing vendors near your location
-          </p>
-          <p style={{ fontSize: "16px", color: "#e74c3c", fontWeight: "bold" }}>{vendors.length} vendors found</p>
-        </div>
+        </div> */}
         <MapPreview onExpand={handleExpandMap} vendors={vendors} />
       </div>
 
