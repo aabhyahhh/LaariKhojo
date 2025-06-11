@@ -42,43 +42,58 @@ function MapDisplay() {
   const [isMapInitialized, setIsMapInitialized] = useState<boolean>(false);
   const [isLocationLoading, setIsLocationLoading] = useState<boolean>(true);
 
-  // Modified isVendorOperating function to handle undefined operatingHours
-  const isVendorOperating = (operatingHours?: OperatingHours): boolean => {
-    // Return true if operatingHours is undefined (show all vendors)
-    if (
-      !operatingHours ||
-      !operatingHours.days ||
-      !operatingHours.openTime ||
-      !operatingHours.closeTime
-    ) {
-      return true; // Changed from false to true to show vendors without operating hours
+  const navigate = useNavigate();
+
+  // Helper function to determine vendor operating status and color
+  const getOperatingStatus = (operatingHours?: OperatingHours) => {
+    if (!operatingHours || !operatingHours.openTime || !operatingHours.closeTime || !operatingHours.days) {
+      return { status: 'Hours Not Specified', color: '#888' };
     }
 
     const now = new Date();
-    const currentDay = now.getDay();
-    const currentTime = now.getHours() * 60 + now.getMinutes();
+    const currentDay = now.getDay(); // 0 for Sunday, 6 for Saturday
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
-    // Check if vendor operates on current day
+    const [openHours, openMinutes] = operatingHours.openTime.split(':').map(Number);
+    const [closeHours, closeMinutes] = operatingHours.closeTime.split(':').map(Number);
+
+    const openTimeInMinutes = openHours * 60 + openMinutes;
+    let closeTimeInMinutes = closeHours * 60 + closeMinutes;
+
+    // Handle overnight closing (e.g., opens 22:00, closes 02:00)
+    if (closeTimeInMinutes < openTimeInMinutes) {
+      if (currentMinutes >= openTimeInMinutes || currentMinutes <= closeTimeInMinutes) {
+        // Within operating hours (including overnight)
+      } else {
+        return { status: 'Closed', color: '#d9534f' };
+      }
+    } else {
+      // Standard same-day closing
+      if (currentMinutes < openTimeInMinutes || currentMinutes > closeTimeInMinutes) {
+        return { status: 'Closed', color: '#d9534f' };
+      }
+    }
+
+    // Check if it's the right day
     if (!operatingHours.days.includes(currentDay)) {
-      return false;
+      return { status: 'Closed Today', color: '#d9534f' };
     }
 
-    // Convert operating hours to minutes for comparison
-    const [openHours, openMinutes] = operatingHours.openTime
-      .split(":")
-      .map(Number);
-    const [closeHours, closeMinutes] = operatingHours.closeTime
-      .split(":")
-      .map(Number);
-    const openTime = openHours * 60 + openMinutes;
-    const closeTime = closeHours * 60 + closeMinutes;
-
-    // Handle cases where closing time is on the next day
-    if (closeTime < openTime) {
-      return currentTime >= openTime || currentTime <= closeTime;
+    // Check for 'Closes Soon' (within 30 minutes)
+    const closesSoonThreshold = 30; // minutes
+    if (closeTimeInMinutes < openTimeInMinutes) { // Overnight closing
+      // Calculate time until close for today/tomorrow
+      const timeUntilClose = (closeTimeInMinutes - currentMinutes + 1440) % 1440; 
+      if (timeUntilClose <= closesSoonThreshold) {
+        return { status: 'Closes Soon', color: '#f0ad4e' }; // Orange for closes soon
+      }
+    } else { // Same day closing
+      if (closeTimeInMinutes - currentMinutes > 0 && closeTimeInMinutes - currentMinutes <= closesSoonThreshold) {
+        return { status: 'Closes Soon', color: '#f0ad4e' };
+      }
     }
 
-    return currentTime >= openTime && currentTime <= closeTime;
+    return { status: 'Open Now', color: '#28a745' }; // Green for open
   };
 
   // Alternative: IP-based location fallback
@@ -398,8 +413,7 @@ function MapDisplay() {
         return;
       }
 
-      // Check if vendor should be displayed (removed operating hours check for now)
-      console.log(`Adding marker for ${vendor.name} at:`, coords);
+      const { status, color } = getOperatingStatus(vendor.operatingHours);
 
       // Create popup content with icons and collapsible operating hours
       const popupContent = `
@@ -422,9 +436,9 @@ function MapDisplay() {
                   <circle cx="12" cy="12" r="10"></circle>
                   <polyline points="12 6 12 12 16 14"></polyline>
                 </svg>
-                <span style="color: #666; display: flex; align-items: center;">
-                  <span style="color: #28a745; margin-right: 4px;">●</span>
-                  Open Now
+                <span style="color: ${color}; display: flex; align-items: center;">
+                  <span style="color: ${color}; margin-right: 4px;">●</span>
+                  ${status}
                   <svg style="width: 12px; height: 12px; margin-left: 4px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <polyline points="6 9 12 15 18 9"></polyline>
                   </svg>
@@ -569,8 +583,22 @@ function MapDisplay() {
   };
 
   return (
-    <div style={{ width: "100%", height: "calc(100vh)", position: "relative", display: "flex", flexDirection: "column" }}>
-      
+    <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column" }}>
+      {/* Logo in top-left for MapDisplay */}
+      <div
+        style={{
+          position: 'absolute',
+          top: '20px',
+          left: '20px',
+          zIndex: 1000,
+          cursor: 'pointer',
+        }}
+        onClick={() => navigate('/')}
+      >
+        <img src={logo} alt="Laari Logo" style={{ height: '100px' }} />
+      </div>
+
+      {/* Map Content */}
       <div id="map" style={{ width: "100%", height: "100%", flexGrow: 1 }}></div>
       {error && (
         <div
@@ -703,42 +731,33 @@ function App() {
   };
 
   return (
-    <>
-      <div
-        style={{
-          position: 'absolute',
-          top: '20px',
-          left: '20px',
-          zIndex: 1000, // Ensure it's above other content
-          cursor: 'pointer', // Indicate it's clickable
-        }}
-        onClick={() => navigate('/')} // Add onClick handler to navigate to home
-      >
-        <img src={logo} alt="Laari Logo" style={{ height: '100px' }} />
+    <div style={{ height: "100vh", width: "100vw", display: "flex", flexDirection: "column" }}>
+      {/* Main content area */}
+      <div style={{ flexGrow: 1, position: "relative" }}>
+        <Routes>
+          <Route path="/" element={<HomeScreen />} />
+          <Route path="/map" element={<MapDisplay />} />
+          <Route
+            path="/register"
+            element={<Register onRegisterSuccess={() => {}} />}
+          />
+          <Route
+            path="/login"
+            element={<Login onLoginSuccess={handleLoginSuccess} />}
+          />
+          <Route
+            path="/update-profile"
+            element={
+              isLoggedIn ? (
+                <UpdateProfile />
+              ) : (
+                <Navigate to="/login" state={{ from: location }} replace />
+              )
+            }
+          />
+        </Routes>
       </div>
-      <Routes>
-        <Route path="/" element={<HomeScreen />} />
-        <Route path="/map" element={<MapDisplay />} />
-        <Route
-          path="/register"
-          element={<Register onRegisterSuccess={() => {}} />}
-        />
-        <Route
-          path="/login"
-          element={<Login onLoginSuccess={handleLoginSuccess} />}
-        />
-        <Route
-          path="/update-profile"
-          element={
-            isLoggedIn ? (
-              <UpdateProfile />
-            ) : (
-              <Navigate to="/login" state={{ from: location }} replace />
-            )
-          }
-        />
-      </Routes>
-    </>
+    </div>
   );
 }
 
