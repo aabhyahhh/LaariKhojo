@@ -1,11 +1,11 @@
 import { Routes, Route, useLocation, Navigate } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
 import HomeScreen from "./components/HomeScreen";
-import Header from "./components/Header";
 import Register from "./components/Register";
 import UpdateProfile from "./components/UpdateProfile";
 import Login from "./components/Login";
-import laari from "./assets/laari.png";
+import laari from "./assets/logo_cropped.png";
+import logo from "./assets/logo.png";
 import { useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -259,7 +259,7 @@ function MapDisplay() {
     }
 
     try {
-      mapRef.current = L.map("map").setView(
+      mapRef.current = L.map("map", { zoomControl: false }).setView(
         initialCoords as [number, number],
         initialZoom
       );
@@ -271,6 +271,9 @@ function MapDisplay() {
           attribution: '© OpenStreetMap contributors',
         }
       ).addTo(mapRef.current);
+
+      // Add custom zoom control to bottom right
+      L.control.zoom({ position: 'bottomright' }).addTo(mapRef.current);
 
       // Handle zoom events to update icon sizes
       mapRef.current.on("zoomend", () => {
@@ -567,8 +570,9 @@ function MapDisplay() {
   };
 
   return (
-    <div style={{ width: "100%", height: "100vh", position: "relative" }}>
-      <div id="map" style={{ width: "100%", height: "100%" }}></div>
+    <div style={{ width: "100%", height: "calc(100vh)", position: "relative", display: "flex", flexDirection: "column" }}>
+      
+      <div id="map" style={{ width: "100%", height: "100%", flexGrow: 1 }}></div>
       {error && (
         <div
           className="error-message"
@@ -701,11 +705,18 @@ function App() {
 
   return (
     <>
-      <Header
-        showRegisterButton={showRegisterButton}
-        isLoggedIn={isLoggedIn}
-        onLogout={handleLogout}
-      />
+      <div
+        style={{
+          position: 'absolute',
+          top: '20px',
+          left: '20px',
+          zIndex: 1000, // Ensure it's above other content
+          cursor: 'pointer', // Indicate it's clickable
+        }}
+        onClick={() => navigate('/')} // Add onClick handler to navigate to home
+      >
+        <img src={logo} alt="Laari Logo" style={{ height: '70px' }} />
+      </div>
       <Routes>
         <Route path="/" element={<HomeScreen />} />
         <Route path="/map" element={<MapDisplay />} />
