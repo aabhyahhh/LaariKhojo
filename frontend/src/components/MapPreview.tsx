@@ -1,21 +1,17 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import './MapPreview.css';
 import laari from '../assets/logo_cropped.png';
 
 interface MapPreviewProps {
-  onExpand?: () => void;
   vendors?: any[];
 }
 
-const MapPreview: React.FC<MapPreviewProps> = ({ onExpand, vendors = [] }) => {
+const MapPreview: React.FC<MapPreviewProps> = ({ vendors = [] }) => {
   const mapRef = useRef<L.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
-  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const navigate = useNavigate();
 
   useEffect(() => {
     if (!mapContainerRef.current) return;
@@ -74,7 +70,6 @@ const MapPreview: React.FC<MapPreviewProps> = ({ onExpand, vendors = [] }) => {
         longitude: position.coords.longitude,
       };
       
-      setUserLocation(userCoords);
       setError(null);
 
       // Center map on user location and add user marker
@@ -255,14 +250,6 @@ const MapPreview: React.FC<MapPreviewProps> = ({ onExpand, vendors = [] }) => {
     });
 
     console.log(`Added ${markersAdded} markers to map preview`);
-  };
-
-  const handleExpandClick = () => {
-    if (onExpand) {
-      onExpand();
-    } else {
-      navigate('/map');
-    }
   };
 
   return (

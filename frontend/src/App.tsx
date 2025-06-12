@@ -10,8 +10,13 @@ import { useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "./App.css";
+import usePageTracking from './usePageTracking';
 
 const API_URL = "https://laari-khojo-backend.onrender.com";
+
+import ReactGA from 'react-ga4';
+
+ReactGA.initialize('G-ZC8J75N781'); // Your GA4 Measurement ID
 
 interface OperatingHours {
   openTime: string; // Format: "HH:mm" in 24-hour format
@@ -233,15 +238,8 @@ function MapDisplay() {
     }
   };
 
-  // Calculate icon size based on zoom level
-  const calculateIconSize = (baseSize: number): number => {
-    const zoomFactor = Math.pow(1.2, currentZoom - 13);
-    return Math.max(24, Math.min(96, baseSize * zoomFactor));
-  };
-
   // Create custom icon with size based on zoom level
   const createVendorIcon = () => {
-    const size = calculateIconSize(64);
     return L.icon({
       iconUrl: laari,
       iconSize: [24, 24],
@@ -698,37 +696,12 @@ function MapDisplay() {
 
 function App() {
   const location = useLocation();
-  const navigate = useNavigate();
-  const [showRegisterButton, setShowRegisterButton] = useState(true);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-
-  useEffect(() => {
-    // Hide register button when on register page
-    setShowRegisterButton(location.pathname !== "/register");
-
-    // Check if user is logged in
-    const token = localStorage.getItem("token");
-    setIsLoggedIn(!!token);
-  }, [location]);
-
+  const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
+  
   const handleLoginSuccess = (token: string) => {
-    setIsLoggedIn(true);
-
-    // Store token (example: localStorage)
-    localStorage.setItem("token", token);
-
-    // Get the redirect path from location state if available
-    const from = location.state?.from?.pathname || "/update-profile";
-
-    // Use navigate instead of window.location for better React Router integration
-    navigate(from, { replace: true });
+    setToken(token);
   };
-
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    setIsLoggedIn(false);
-    navigate("/login");
-  };
+  usePageTracking(); // tracks every route change
 
   return (
     <div style={{ height: "100vh", width: "100vw", display: "flex", flexDirection: "column" }}>
@@ -748,7 +721,7 @@ function App() {
           <Route
             path="/update-profile"
             element={
-              isLoggedIn ? (
+              token ? (
                 <UpdateProfile />
               ) : (
                 <Navigate to="/login" state={{ from: location }} replace />

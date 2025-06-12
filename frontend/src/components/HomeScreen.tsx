@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './HomeScreen.css';
-import Header from '../components/Header';
-import homescreenBg from '../assets/homescreen-bg.png';
+// import Header from '../components/Header'; // Removed unused import
+// import homescreenBg from '../assets/homescreen-bg.png'; // Removed unused import
 import MapPreview from './MapPreview';
 import { API_URL } from '../api/config'; // Import API_URL
 import laarikhojoImage from '../assets/laarikhojo.png'; // Import the new image
@@ -20,7 +20,7 @@ interface Vendor {
 const HomeScreen: React.FC = () => {
   const navigate = useNavigate();
   const [vendors, setVendors] = useState<Vendor[]>([]); // State to store vendors
-  const [error, setError] = useState<string | null>(null); // State for error handling
+  // const [error, setError] = useState<string | null>(null); // Removed unused state
   const [isLaptopResolution, setIsLaptopResolution] = useState(window.innerWidth > 768); // New state for screen resolution
 
   useEffect(() => {
@@ -74,10 +74,6 @@ const HomeScreen: React.FC = () => {
     navigate("/map");
   };
 
-  const handleExpandMap = () => {
-    navigate("/map");
-  };
-
   // Function to fetch vendors (similar to MapDisplay)
   const fetchVendors = async () => {
     try {
@@ -97,12 +93,12 @@ const HomeScreen: React.FC = () => {
         return data.data;
       } else {
         console.error("API response indicates failure:", data);
-        setError("Failed to fetch vendors data");
+        // setError("Failed to fetch vendors data"); // Removed call to unused setError
         return [];
       }
     } catch (error: unknown) {
       console.error("Error fetching vendors:", error);
-      setError(`Failed to fetch vendors data: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      // setError(`Failed to fetch vendors data: ${error instanceof Error ? error.message : 'Unknown error'}`); // Removed call to unused setError
       return [];
     }
   };
@@ -250,7 +246,7 @@ const HomeScreen: React.FC = () => {
             Expand Map <span style={{ fontSize: "20px", lineHeight: "1" }}>−</span>
           </button>
         </div> */}
-        <MapPreview onExpand={handleExpandMap} vendors={vendors} />
+        <MapPreview vendors={vendors} />
       </div>
 
       {/* Commenting out everything below hero section */}
