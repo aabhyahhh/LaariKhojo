@@ -13,6 +13,7 @@ const webhookRoutes = require("./routes/webhookRoute");
 const allowedOrigins = [
   "https://laarikhojo.in",  // Without trailing slash
   "http://localhost:3000",  // For local development
+  "https://www.laarikhojo.in",    // ✅ ADD THIS LINE
   "http://localhost:5173",
   "http://localhost:5174",  // Add this line
   // For Vite's default port
@@ -22,23 +23,19 @@ const app = express();
 
 const PORT = process.env.PORT || 3000;
 app.use(express.urlencoded({ extended: true }));
-app.use(
-  cors({
-    origin: function(origin, callback) {
-      // Allow requests with no origin (like mobile apps or curl requests)
-      if (!origin) return callback(null, true);
-      
-      if (allowedOrigins.indexOf(origin) !== -1) {
-        callback(null, true);
-      } else {
-        console.log("Blocked origin:", origin);
-        callback(new Error('Not allowed by CORS'));
-      }
-    },
-    methods: "GET,POST,PUT,DELETE",
-    credentials: true,
-  })
-);
+app.use(cors({
+  origin: function(origin, callback) {
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.some(o => (typeof o === 'string' && o === origin) || (o instanceof RegExp && o.test(origin)))) {
+      callback(null, true);
+    } else {
+      console.log("Blocked origin:", origin);
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
+  methods: "GET,POST,PUT,DELETE",
+  credentials: true
+}));
 
 app.use(express.json());
 
