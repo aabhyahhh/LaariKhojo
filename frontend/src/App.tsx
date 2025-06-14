@@ -12,7 +12,7 @@ import "leaflet/dist/leaflet.css";
 import "./App.css";
 import usePageTracking from './usePageTracking';
 
-const API_URL = "https://laari-khojo-backend.onrender.com";
+const API_URL = "https://laari-khojo-backend.onrender.com/";
 
 import ReactGA from 'react-ga4';
 
