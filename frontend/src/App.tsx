@@ -11,6 +11,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "./App.css";
 import usePageTracking from './usePageTracking';
+import api, { Vendor } from './api/client';
 
 const API_URL = "https://laari-khojo-backend.onrender.com/";
 
@@ -22,15 +23,6 @@ interface OperatingHours {
   openTime: string; // Format: "HH:mm" in 24-hour format
   closeTime: string; // Format: "HH:mm" in 24-hour format
   days: number[]; // 0-6 representing Sunday-Saturday
-}
-
-interface Vendor {
-  _id: string;
-  name: string;
-  email?: string;
-  contactNumber: string;
-  mapsLink: string;
-  operatingHours: OperatingHours;
 }
 
 function MapDisplay() {
@@ -212,23 +204,15 @@ function MapDisplay() {
 
   const fetchVendors = async () => {
     try {
-      console.log("Fetching vendors from:", `${API_URL}/api/all-users`);
-      const response = await fetch(`${API_URL}/api/all-users`);
+      const result = await api.getAllUsers();
       
-      if (!response.ok) {
-        throw new Error(`Failed to fetch vendors: ${response.status} ${response.statusText}`);
-      }
-      
-      const data = await response.json();
-      console.log("Fetched Vendors Response:", data);
-      
-      if (data.success && data.data) {
-        setVendors(data.data);
-        console.log("Vendors set successfully:", data.data.length, "vendors");
-        return data.data;
+      if (result.success && result.data) {
+        setVendors(result.data);
+        console.log("Vendors set successfully:", result.data.length, "vendors");
+        return result.data;
       } else {
-        console.error("API response indicates failure:", data);
-        setError("Failed to fetch vendors data");
+        console.error("API response indicates failure:", result.error);
+        setError(result.error || "Failed to fetch vendors data");
         return [];
       }
     } catch (error: unknown) {
