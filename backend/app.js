@@ -5,13 +5,13 @@ const path = require("path");
 const mongoose = require("mongoose");
 const http = require("http");
 const MONGOURI = process.env.MONGOURI;
+const axios = require('axios'); // ✅ Add this at the top
 
 const authRoutes = require("./routes/authRoute");
 const webhookRoutes = require("./routes/webhookRoute");
 
 const allowedOrigins = [
   "https://laarikhojo.in",  // Without trailing slash
-  "https://laarikhojo.in/", // With trailing slash
   "http://localhost:3000",  // For local development
   "http://localhost:5173",
   "http://localhost:5174",  // Add this line
@@ -39,7 +39,6 @@ app.use(
     credentials: true,
   })
 );
-const server = http.createServer(app);
 
 app.use(express.json());
 

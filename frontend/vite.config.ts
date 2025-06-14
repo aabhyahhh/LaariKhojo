@@ -9,6 +9,7 @@ export default defineConfig({
     outDir: 'dist',
     assetsDir: 'assets',
     sourcemap: true,
+    chunkSizeWarningLimit: 1000,
     rollupOptions: {
       output: {
         manualChunks: undefined,
@@ -20,7 +21,7 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
-        target: 'https://laari-khojo-backend.onrender.com',
+        target: 'https://laari-khojo-backend.onrender.com/',
         changeOrigin: true,
         secure: false
       }

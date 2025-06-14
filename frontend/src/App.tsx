@@ -1,17 +1,22 @@
 import { Routes, Route, useLocation, Navigate } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
 import HomeScreen from "./components/HomeScreen";
-import Header from "./components/Header";
 import Register from "./components/Register";
 import UpdateProfile from "./components/UpdateProfile";
 import Login from "./components/Login";
-import laari from "./assets/laari.png";
+import laari from "./assets/logo_cropped.png";
+import logo from "./assets/logo.png";
 import { useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "./App.css";
+import usePageTracking from './usePageTracking';
 
-const API_URL = "https://laari-khojo-backend.onrender.com";
+const API_URL = "https://laari-khojo-backend.onrender.com/";
+
+import ReactGA from 'react-ga4';
+
+ReactGA.initialize('G-ZC8J75N781'); // Your GA4 Measurement ID
 
 interface OperatingHours {
   openTime: string; // Format: "HH:mm" in 24-hour format
@@ -42,43 +47,58 @@ function MapDisplay() {
   const [isMapInitialized, setIsMapInitialized] = useState<boolean>(false);
   const [isLocationLoading, setIsLocationLoading] = useState<boolean>(true);
 
-  // Modified isVendorOperating function to handle undefined operatingHours
-  const isVendorOperating = (operatingHours?: OperatingHours): boolean => {
-    // Return true if operatingHours is undefined (show all vendors)
-    if (
-      !operatingHours ||
-      !operatingHours.days ||
-      !operatingHours.openTime ||
-      !operatingHours.closeTime
-    ) {
-      return true; // Changed from false to true to show vendors without operating hours
+  const navigate = useNavigate();
+
+  // Helper function to determine vendor operating status and color
+  const getOperatingStatus = (operatingHours?: OperatingHours) => {
+    if (!operatingHours || !operatingHours.openTime || !operatingHours.closeTime || !operatingHours.days) {
+      return { status: 'Hours Not Specified', color: '#888' };
     }
 
     const now = new Date();
-    const currentDay = now.getDay();
-    const currentTime = now.getHours() * 60 + now.getMinutes();
+    const currentDay = now.getDay(); // 0 for Sunday, 6 for Saturday
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
-    // Check if vendor operates on current day
+    const [openHours, openMinutes] = operatingHours.openTime.split(':').map(Number);
+    const [closeHours, closeMinutes] = operatingHours.closeTime.split(':').map(Number);
+
+    const openTimeInMinutes = openHours * 60 + openMinutes;
+    let closeTimeInMinutes = closeHours * 60 + closeMinutes;
+
+    // Handle overnight closing (e.g., opens 22:00, closes 02:00)
+    if (closeTimeInMinutes < openTimeInMinutes) {
+      if (currentMinutes >= openTimeInMinutes || currentMinutes <= closeTimeInMinutes) {
+        // Within operating hours (including overnight)
+      } else {
+        return { status: 'Closed', color: '#d9534f' };
+      }
+    } else {
+      // Standard same-day closing
+      if (currentMinutes < openTimeInMinutes || currentMinutes > closeTimeInMinutes) {
+        return { status: 'Closed', color: '#d9534f' };
+      }
+    }
+
+    // Check if it's the right day
     if (!operatingHours.days.includes(currentDay)) {
-      return false;
+      return { status: 'Closed Today', color: '#d9534f' };
     }
 
-    // Convert operating hours to minutes for comparison
-    const [openHours, openMinutes] = operatingHours.openTime
-      .split(":")
-      .map(Number);
-    const [closeHours, closeMinutes] = operatingHours.closeTime
-      .split(":")
-      .map(Number);
-    const openTime = openHours * 60 + openMinutes;
-    const closeTime = closeHours * 60 + closeMinutes;
-
-    // Handle cases where closing time is on the next day
-    if (closeTime < openTime) {
-      return currentTime >= openTime || currentTime <= closeTime;
+    // Check for 'Closes Soon' (within 30 minutes)
+    const closesSoonThreshold = 30; // minutes
+    if (closeTimeInMinutes < openTimeInMinutes) { // Overnight closing
+      // Calculate time until close for today/tomorrow
+      const timeUntilClose = (closeTimeInMinutes - currentMinutes + 1440) % 1440; 
+      if (timeUntilClose <= closesSoonThreshold) {
+        return { status: 'Closes Soon', color: '#f0ad4e' }; // Orange for closes soon
+      }
+    } else { // Same day closing
+      if (closeTimeInMinutes - currentMinutes > 0 && closeTimeInMinutes - currentMinutes <= closesSoonThreshold) {
+        return { status: 'Closes Soon', color: '#f0ad4e' };
+      }
     }
 
-    return currentTime >= openTime && currentTime <= closeTime;
+    return { status: 'Open Now', color: '#28a745' }; // Green for open
   };
 
   // Alternative: IP-based location fallback
@@ -218,20 +238,13 @@ function MapDisplay() {
     }
   };
 
-  // Calculate icon size based on zoom level
-  const calculateIconSize = (baseSize: number): number => {
-    const zoomFactor = Math.pow(1.2, currentZoom - 13);
-    return Math.max(24, Math.min(96, baseSize * zoomFactor));
-  };
-
   // Create custom icon with size based on zoom level
   const createVendorIcon = () => {
-    const size = calculateIconSize(64);
     return L.icon({
       iconUrl: laari,
-      iconSize: [size, size],
-      iconAnchor: [size / 4, size / 2],
-      popupAnchor: [0, -size / 2],
+      iconSize: [24, 24],
+      iconAnchor: [12, 24],
+      popupAnchor: [0, -24],
     });
   };
 
@@ -259,7 +272,7 @@ function MapDisplay() {
     }
 
     try {
-      mapRef.current = L.map("map").setView(
+      mapRef.current = L.map("map", { zoomControl: false }).setView(
         initialCoords as [number, number],
         initialZoom
       );
@@ -271,6 +284,9 @@ function MapDisplay() {
           attribution: '© OpenStreetMap contributors',
         }
       ).addTo(mapRef.current);
+
+      // Add custom zoom control to bottom right
+      L.control.zoom({ position: 'bottomright' }).addTo(mapRef.current);
 
       // Handle zoom events to update icon sizes
       mapRef.current.on("zoomend", () => {
@@ -395,65 +411,60 @@ function MapDisplay() {
         return;
       }
 
-      // Check if vendor should be displayed (removed operating hours check for now)
-      console.log(`Adding marker for ${vendor.name} at:`, coords);
+      const { status, color } = getOperatingStatus(vendor.operatingHours);
 
-      // Safely display operating hours information if available
-      let operatingStatus = "Hours not specified";
-      let daysOpen = "Days not specified";
-
-      if (
-        vendor.operatingHours &&
-        vendor.operatingHours.openTime &&
-        vendor.operatingHours.closeTime
-      ) {
-        operatingStatus = `Open: ${vendor.operatingHours.openTime} - ${vendor.operatingHours.closeTime}`;
-      }
-
-      if (
-        vendor.operatingHours &&
-        vendor.operatingHours.days &&
-        Array.isArray(vendor.operatingHours.days)
-      ) {
-        daysOpen = vendor.operatingHours.days
-          .map(
-            (day) => ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][day]
-          )
-          .join(", ");
-      }
-
+      // Create popup content with icons and collapsible operating hours
       const popupContent = `
-      <div class="custom-popup">
-        <h3 style="font-weight: 600; margin: 0 0 10px 0; font-size: 18px;">${
-          vendor.name
-        }</h3>
-        
-        <div class="info-line" style="margin-bottom: 8px; display: flex;">
-          <div class="info-label" style="font-weight: 600; margin-right: 5px; min-width: 75px;">Contact:</div>
-          <div class="info-value" style="flex: 1;">${
-            vendor.contactNumber || "Not provided"
-          }</div>
+        <div class="custom-popup" style="font-size: 12px; line-height: 1.4; min-width: 200px;">
+          <h3 style="margin: 0 0 8px 0; font-size: 14px; font-weight: 600; color: #2c3e50;">${vendor.name}</h3>
+          
+          ${vendor.contactNumber ? `
+            <div style="display: flex; align-items: center; margin-bottom: 6px;">
+              <svg style="width: 14px; height: 14px; margin-right: 8px; color: #666;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+              </svg>
+              <span style="color: #666;">${vendor.contactNumber}</span>
+            </div>
+          ` : ''}
+
+          ${vendor.operatingHours ? `
+            <div style="margin-bottom: 6px;">
+              <div style="display: flex; align-items: center; cursor: pointer;" onclick="this.parentElement.querySelector('.hours-details').style.display = this.parentElement.querySelector('.hours-details').style.display === 'none' ? 'block' : 'none'">
+                <svg style="width: 14px; height: 14px; margin-right: 8px; color: #666;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+                <span style="color: ${color}; display: flex; align-items: center;">
+                  <span style="color: ${color}; margin-right: 4px;">●</span>
+                  ${status}
+                  <svg style="width: 12px; height: 12px; margin-left: 4px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                  </svg>
+                </span>
+              </div>
+              <div class="hours-details" style="display: none; margin-left: 22px; margin-top: 4px; padding-top: 4px; border-top: 1px solid #eee;">
+                <div style="color: #666; margin-bottom: 2px;">
+                  <strong>Hours:</strong> ${vendor.operatingHours.openTime} - ${vendor.operatingHours.closeTime}
+                </div>
+                <div style="color: #666;">
+                  <strong>Days:</strong> ${vendor.operatingHours.days.map((day: number) => 
+                    ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][day]
+                  ).join(', ')}
+                </div>
+              </div>
+            </div>
+          ` : ''}
+
+          ${vendor.mapsLink ? `
+            <div style="display: flex; align-items: center;">
+              <svg style="width: 14px; height: 14px; margin-right: 8px; color: #666;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                <circle cx="12" cy="10" r="3"></circle>
+              </svg>
+              <a href="${vendor.mapsLink}" target="_blank" style="color: #007bff; text-decoration: none; font-size: 12px;">View on Maps</a>
+            </div>
+          ` : ''}
         </div>
-        
-        <div class="info-line" style="margin-bottom: 8px; display: flex;">
-          <div class="info-label" style="font-weight: 600; margin-right: 5px; min-width: 75px;">Hours:</div>
-          <div class="info-value" style="flex: 1;">${operatingStatus}</div>
-        </div>
-        
-        <div class="info-line" style="margin-bottom: 8px; display: flex;">
-          <div class="info-label" style="font-weight: 600; margin-right: 5px; min-width: 75px;">Days Open:</div>
-          <div class="info-value" style="flex: 1; word-wrap: break-word;">${daysOpen}</div>
-        </div>
-        
-        <div class="info-line" style="margin-bottom: 8px; display: flex;">
-          <div class="info-label" style="font-weight: 600; margin-right: 5px; min-width: 75px;">Location:</div>
-          <div class="info-value" style="flex: 1;">
-            <a href="${
-              vendor.mapsLink
-            }" target="_blank" style="color: #007bff; text-decoration: underline;">View on Maps</a>
-          </div>
-        </div>
-      </div>
       `;
 
       try {
@@ -464,7 +475,10 @@ function MapDisplay() {
           icon: customIcon,
         })
           .addTo(mapRef.current!)
-          .bindPopup(popupContent);
+          .bindPopup(popupContent, {
+            maxWidth: 250,
+            className: 'custom-popup-container'
+          });
 
         markersRef.current[vendor._id] = marker;
         validMarkers.push(marker);
@@ -567,8 +581,23 @@ function MapDisplay() {
   };
 
   return (
-    <div style={{ width: "100%", height: "100vh", position: "relative" }}>
-      <div id="map" style={{ width: "100%", height: "100%" }}></div>
+    <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column" }}>
+      {/* Logo in top-left for MapDisplay */}
+      <div
+        style={{
+          position: 'absolute',
+          top: '20px',
+          left: '20px',
+          zIndex: 1000,
+          cursor: 'pointer',
+        }}
+        onClick={() => navigate('/')}
+      >
+        <img src={logo} alt="Laari Logo" style={{ height: '100px' }} />
+      </div>
+
+      {/* Map Content */}
+      <div id="map" style={{ width: "100%", height: "100%", flexGrow: 1 }}></div>
       {error && (
         <div
           className="error-message"
@@ -667,68 +696,41 @@ function MapDisplay() {
 
 function App() {
   const location = useLocation();
-  const navigate = useNavigate();
-  const [showRegisterButton, setShowRegisterButton] = useState(true);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-
-  useEffect(() => {
-    // Hide register button when on register page
-    setShowRegisterButton(location.pathname !== "/register");
-
-    // Check if user is logged in
-    const token = localStorage.getItem("token");
-    setIsLoggedIn(!!token);
-  }, [location]);
-
+  const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
+  
   const handleLoginSuccess = (token: string) => {
-    setIsLoggedIn(true);
-
-    // Store token (example: localStorage)
-    localStorage.setItem("token", token);
-
-    // Get the redirect path from location state if available
-    const from = location.state?.from?.pathname || "/update-profile";
-
-    // Use navigate instead of window.location for better React Router integration
-    navigate(from, { replace: true });
+    setToken(token);
   };
-
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    setIsLoggedIn(false);
-    navigate("/login");
-  };
+  usePageTracking(); // tracks every route change
 
   return (
-    <>
-      <Header
-        showRegisterButton={showRegisterButton}
-        isLoggedIn={isLoggedIn}
-        onLogout={handleLogout}
-      />
-      <Routes>
-        <Route path="/" element={<HomeScreen />} />
-        <Route path="/map" element={<MapDisplay />} />
-        <Route
-          path="/register"
-          element={<Register onRegisterSuccess={() => {}} />}
-        />
-        <Route
-          path="/login"
-          element={<Login onLoginSuccess={handleLoginSuccess} />}
-        />
-        <Route
-          path="/update-profile"
-          element={
-            isLoggedIn ? (
-              <UpdateProfile />
-            ) : (
-              <Navigate to="/login" state={{ from: location }} replace />
-            )
-          }
-        />
-      </Routes>
-    </>
+    <div style={{ height: "100vh", width: "100vw", display: "flex", flexDirection: "column" }}>
+      {/* Main content area */}
+      <div style={{ flexGrow: 1, position: "relative" }}>
+        <Routes>
+          <Route path="/" element={<HomeScreen />} />
+          <Route path="/map" element={<MapDisplay />} />
+          <Route
+            path="/register"
+            element={<Register onRegisterSuccess={() => {}} />}
+          />
+          <Route
+            path="/login"
+            element={<Login onLoginSuccess={handleLoginSuccess} />}
+          />
+          <Route
+            path="/update-profile"
+            element={
+              token ? (
+                <UpdateProfile />
+              ) : (
+                <Navigate to="/login" state={{ from: location }} replace />
+              )
+            }
+          />
+        </Routes>
+      </div>
+    </div>
   );
 }
 

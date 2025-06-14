@@ -1,7 +1,7 @@
 import React from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import "./Header.css";
-import fullLogo from "../assets/full-logo.png";
+import fullLogo from "../assets/logo.png";
 
 interface HeaderProps {
   showRegisterButton?: boolean;
@@ -43,8 +43,6 @@ const Header: React.FC<HeaderProps> = ({
             <li><a href="#home" className="nav-button active">Home</a></li>
             <li><a href="#about" className="nav-button">Explore Now</a></li>
             <li><a href="#reviews" className="nav-button">Reviews</a></li>
-            <li><a href="#products" className="nav-button">Products</a></li>
-            <li><a href="#blog" className="nav-button">Blog</a></li>
           </ul>
         </nav>
 
