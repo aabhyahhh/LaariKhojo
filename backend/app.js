@@ -6,6 +6,7 @@ const mongoose = require("mongoose");
 const http = require("http");
 const MONGOURI = process.env.MONGOURI;
 const axios = require('axios'); // ✅ Add this at the top
+const User = require('./models/userModel');
 
 const authRoutes = require("./routes/authRoute");
 const webhookRoutes = require("./routes/webhookRoute");
@@ -80,9 +81,13 @@ app.get("/api/expand-url", async (req, res) => {
 
 app.get("/api/all-users", async (req, res) => {
   try {
-    const vendors = await VendorModel.find({});
+    const vendors = await User.find({})
+      .limit(100)
+      .sort({ updatedAt: -1 })
+      .select('-password'); // Exclude password field for security
     res.json({ data: vendors });
   } catch (error) {
+    console.error('Error fetching vendors:', error);
     res.status(500).json({ error: "Failed to fetch vendors" });
   }
 });

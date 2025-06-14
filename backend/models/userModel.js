@@ -5,12 +5,14 @@ const userSchema = new mongoose.Schema({
 
     name:{
         type: String,
-        required: true
+        required: true,
+        index: true
     },
     email:{
         type: String,
         required: true,
-        unique: true
+        unique: true,
+        index: true
     },
     password:{
         type: String,
@@ -18,7 +20,8 @@ const userSchema = new mongoose.Schema({
     },
     contactNumber:{
         type: String, 
-        required: true
+        required: true,
+        index: true
     },
     mapsLink:{
         type: String, 
@@ -31,5 +34,15 @@ const userSchema = new mongoose.Schema({
 
 },{timestamps: true}
 );
+
+userSchema.index({ updatedAt: -1 });
+
+userSchema.on('index', function(err) {
+    if (err) {
+        console.error('Error creating indexes:', err);
+    } else {
+        console.log('User model indexes created successfully');
+    }
+});
 
 module.exports = mongoose.model('User', userSchema);
