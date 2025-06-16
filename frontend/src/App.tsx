@@ -13,7 +13,6 @@ import "./App.css";
 import usePageTracking from './usePageTracking';
 import api, { Vendor } from './api/client';
 
-const API_URL = "https://laari-khojo-backend.onrender.com/";
 
 import ReactGA from 'react-ga4';
 
