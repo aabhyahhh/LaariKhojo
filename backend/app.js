@@ -4,7 +4,7 @@ const express = require("express");
 const path = require("path");
 const mongoose = require("mongoose");
 const http = require("http");
-const MONGOURI = process.env.MONGOURI;
+const MONGO_URI = process.env.MONGO_URI;
 const axios = require('axios'); // ✅ Add this at the top
 const User = require('./models/userModel');
 
@@ -41,7 +41,7 @@ app.use(cors({
 app.use(express.json());
 
 // MongoDB Connection
-mongoose.connect(MONGOURI, {
+mongoose.connect(MONGO_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 }).then(() =>{
