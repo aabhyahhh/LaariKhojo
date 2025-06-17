@@ -21,7 +21,7 @@ const registerUser = async (req, res) => {
     }
 
     
-      const { name, email, password, contactNumber, mapsLink, operatingHours} = req.body;
+      const { name, email, password, contactNumber, mapsLink, operatingHours, foodType } = req.body;
   
       if (!contactNumber || !mapsLink || !operatingHours) {
         return res.status(409).json({
@@ -63,7 +63,8 @@ const registerUser = async (req, res) => {
       password: hashedPassword,
       latitude, 
       longitude,
-      operatingHours
+      operatingHours,
+      foodType: foodType || 'none'
     });
 
     const userData = await user.save();

@@ -378,7 +378,8 @@ function MapDisplay() {
       console.log(`Processing vendor ${index + 1}:`, {
         name: vendor.name,
         mapsLink: vendor.mapsLink || "No maps link",
-        hasOperatingHours: !!vendor.operatingHours
+        hasOperatingHours: !!vendor.operatingHours,
+        foodType: vendor.foodType
       });
 
       // Check if mapsLink exists
@@ -530,6 +531,7 @@ function MapDisplay() {
       const loadVendors = async () => {
         const vendorData = await fetchVendors();
         if (vendorData && vendorData.length > 0) {
+          console.log("Fetched vendor data:", vendorData);
           updateMapMarkers(vendorData);
         } else {
           console.log("No vendor data received");
