@@ -11,6 +11,7 @@ export interface Vendor {
   mapsLink?: string;
   operatingHours?: any;
   updatedAt?: string;
+  foodType?: 'veg' | 'non-veg' | 'swaminarayan' | 'jain' | 'none';
 }
 
 export interface ApiResponse<T> {

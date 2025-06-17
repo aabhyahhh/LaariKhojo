@@ -58,12 +58,11 @@ mongoose.connection.on("error", (err) => {
   console.error("MongoDB connection error:", err);
 });
 
-
+// Serve static files from the React app build directory
+app.use(express.static(path.join(__dirname, '../frontend/dist')));
 
 app.use("/api", authRoutes);
 app.use("/api", webhookRoutes);
-
-
 
 app.get("/api/expand-url", async (req, res) => {
   const { url } = req.query;
@@ -78,7 +77,6 @@ app.get("/api/expand-url", async (req, res) => {
   }
 });
 
-
 app.get("/api/all-users", async (req, res) => {
   try {
     const vendors = await User.find({})
@@ -92,9 +90,9 @@ app.get("/api/all-users", async (req, res) => {
   }
 });
 
-
-app.get("/", (req, res) => {
-  res.send("Hello from Express on Render!");
+// Catch-all handler: send back React's index.html file for any non-API routes
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../frontend/dist/index.html'));
 });
 
 module.exports = app;

@@ -5,7 +5,7 @@ import {
   faInfoCircle,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import axios, { AxiosResponse, AxiosError } from "axios";
+import axios, { AxiosError } from "axios";
 import "./Register.css";
 
 const USER_REGEX = /^[A-Za-z0-9][A-Za-z0-9-_ ]{2,}$/;
@@ -47,6 +47,9 @@ const Register: React.FC<RegisterProps> = ({ onRegisterSuccess }) => {
   const [mapsLink, setMapsLink] = useState<string>("");
   const [validMapsLink, setValidMapsLink] = useState<boolean>(false);
   const [mapsLinkFocus, setMapsLinkFocus] = useState<boolean>(false);
+
+  const [foodType, setFoodType] = useState<'veg' | 'non-veg' | 'swaminarayan' | 'jain' | 'none'>('none');
+  const [validFoodType, setValidFoodType] = useState<boolean>(false);
 
   const [errMsg, setErrMsg] = useState<string>("");
   const [success, setSuccess] = useState<boolean>(false);
@@ -109,8 +112,12 @@ const Register: React.FC<RegisterProps> = ({ onRegisterSuccess }) => {
   }, [mapsLink]);
 
   useEffect(() => {
+    setValidFoodType(foodType !== 'none');
+  }, [foodType]);
+
+  useEffect(() => {
     setErrMsg("");
-  }, [user, pwd, matchPwd, email, contactNumber, mapsLink]);
+  }, [user, pwd, matchPwd, email, contactNumber, mapsLink, foodType]);
 
   // Prepare operating hours data for API submission
   const prepareOperatingHours = () => {
@@ -130,9 +137,10 @@ const Register: React.FC<RegisterProps> = ({ onRegisterSuccess }) => {
     const v3 = EMAIL_REGEX.test(email);
     const v4 = PHONE_REGEX.test(contactNumber);
     const v5 = MAPS_REGEX.test(mapsLink);
+    const v6 = foodType !== 'none';
 
-    if (!v1 || !v2 || !v3 || !v4 || !v5) {
-      setErrMsg("Invalid Entry");
+    if (!v1 || !v2 || !v3 || !v4 || !v5 || !v6) {
+      setErrMsg("Invalid Entry - Please check all fields including food type");
       return;
     }
 
@@ -140,7 +148,7 @@ const Register: React.FC<RegisterProps> = ({ onRegisterSuccess }) => {
     const operatingHours = prepareOperatingHours();
 
     try {
-      const response: AxiosResponse<RegisterProps> = await axios.post(
+      await axios.post(
         REGISTER_URL,
         JSON.stringify({
           name: user,
@@ -149,14 +157,13 @@ const Register: React.FC<RegisterProps> = ({ onRegisterSuccess }) => {
           contactNumber,
           mapsLink,
           operatingHours,
+          foodType,
         }),
         {
           headers: { "Content-Type": "application/json" },
           withCredentials: true,
         }
       );
-      console.log(response?.data);
-      console.log(JSON.stringify(response));
 
       onRegisterSuccess();
 
@@ -168,6 +175,7 @@ const Register: React.FC<RegisterProps> = ({ onRegisterSuccess }) => {
       setEmail("");
       setContactNumber("");
       setMapsLink("");
+      setFoodType('none'); // Reset food type
     } catch (err) {
       const error = err as AxiosError<{ msg?: string }>; // Define expected response structure
       if (!error?.response) {
@@ -175,7 +183,7 @@ const Register: React.FC<RegisterProps> = ({ onRegisterSuccess }) => {
       } else if (error.response?.status === 409) {
         setErrMsg("Name Taken");
       } else {
-        console.error("Registration error:", error.response?.data);
+        console.error("Registration Failed:", error.response?.data);
         setErrMsg(
           `Registration Failed: ${error.response?.data?.msg || "Unknown error"}`
         );
@@ -273,7 +281,6 @@ const Register: React.FC<RegisterProps> = ({ onRegisterSuccess }) => {
                   )}
                 </div>
 
-                {/* New contact number field */}
                 <div className="form-group">
                   <label htmlFor="contactNumber">
                     Contact Number
@@ -289,75 +296,61 @@ const Register: React.FC<RegisterProps> = ({ onRegisterSuccess }) => {
                     )}
                   </label>
                   <input
-                    type="tel"
+                    type="text"
                     id="contactNumber"
                     onChange={(e) => setContactNumber(e.target.value)}
                     value={contactNumber}
                     required
                     aria-invalid={validContactNumber ? "false" : "true"}
-                    aria-describedby="phonenote"
+                    aria-describedby="contactnote"
                     onFocus={() => setContactNumberFocus(true)}
                     onBlur={() => setContactNumberFocus(false)}
                   />
-                  {contactNumberFocus &&
-                    contactNumber &&
-                    !validContactNumber && (
-                      <p className="input-requirements">
-                        <FontAwesomeIcon icon={faInfoCircle} />
-                        Please enter a valid Indian mobile number.
-                      </p>
-                    )}
-                </div>
-                {/* New maps link field */}
-                <div className="form-group">
-                  <label htmlFor="mapsLink">
-                    Google Maps URL{" "}
-                    <a
-                      href="https://www.google.co.in/maps/preview"
-                      style={{ color: "blue", textDecoration: "underline" }}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      https://www.google.co.in/maps/preview
-                    </a>
-                    {mapsLink && (
-                      <span className="validation-icon">
-                        <FontAwesomeIcon
-                          icon={validMapsLink ? faCheck : faTimes}
-                          className={
-                            validMapsLink ? "valid-icon" : "invalid-icon"
-                          }
-                        />
-                      </span>
-                    )}
-                  </label>
-                  <input
-                    type="url"
-                    id="mapsLink"
-                    onChange={(e) => setMapsLink(e.target.value)}
-                    value={mapsLink}
-                    required
-                    aria-invalid={validMapsLink ? "false" : "true"}
-                    aria-describedby="mapsnote"
-                    onFocus={() => setMapsLinkFocus(true)}
-                    onBlur={() => setMapsLinkFocus(false)}
-                  />
-                  {mapsLinkFocus && mapsLink && !validMapsLink && (
+                  {contactNumberFocus && contactNumber && !validContactNumber && (
                     <p className="input-requirements">
                       <FontAwesomeIcon icon={faInfoCircle} />
-                      Please enter a valid Google Maps URL. <br />
-                      Follow the following steps:- <br />
-                      1. Open Google Maps on a web browser (link given above).
-                      <br />
-                      2. Stay on the web and search your location. <br />
-                      3. Copy the URL from the browser and paste it here. <br />
+                      Please enter a valid 10-digit Indian contact number.
                     </p>
                   )}
                 </div>
 
-                {/* Operating Hours Section */}
                 <div className="form-group">
-                  <label>Operating Hours</label>
+                  <label htmlFor="foodType">
+                    Food Type
+                    {foodType !== 'none' && (
+                      <span className="validation-icon">
+                        <FontAwesomeIcon
+                          icon={validFoodType ? faCheck : faTimes}
+                          className={validFoodType ? "valid-icon" : "invalid-icon"}
+                        />
+                      </span>
+                    )}
+                  </label>
+                  <select
+                    id="foodType"
+                    value={foodType}
+                    onChange={(e) => setFoodType(e.target.value as 'veg' | 'non-veg' | 'swaminarayan' | 'jain' | 'none')}
+                    required
+                    style={{
+                      borderColor: foodType === 'none' ? '#ff6b6b' : '#4ecdc4'
+                    }}
+                  >
+                    <option value="none">Select Food Type *</option>
+                    <option value="veg">Veg</option>
+                    <option value="non-veg">Non-Veg</option>
+                    <option value="swaminarayan">Swaminarayan</option>
+                    <option value="jain">Jain</option>
+                  </select>
+                  {foodType === 'none' && (
+                    <p className="input-requirements">
+                      <FontAwesomeIcon icon={faInfoCircle} />
+                      Please select a food type
+                    </p>
+                  )}
+                </div>
+
+                <div className="form-group operating-hours-section">
+                  <h3>Operating Hours</h3>
                   <div className="opening-hours-container">
                     <div className="time-inputs">
                       <label htmlFor="openTime">Open Time</label>
@@ -400,6 +393,42 @@ const Register: React.FC<RegisterProps> = ({ onRegisterSuccess }) => {
                       </div>
                     ))}
                   </div>
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="mapsLink">
+                    Google Maps Link
+                    {mapsLink && (
+                      <span className="validation-icon">
+                        <FontAwesomeIcon
+                          icon={validMapsLink ? faCheck : faTimes}
+                          className={
+                            validMapsLink ? "valid-icon" : "invalid-icon"
+                          }
+                        />
+                      </span>
+                    )}
+                  </label>
+                  <input
+                    type="text"
+                    id="mapsLink"
+                    onChange={(e) => setMapsLink(e.target.value)}
+                    value={mapsLink}
+                    required
+                    aria-invalid={validMapsLink ? "false" : "true"}
+                    aria-describedby="mapslinknote"
+                    onFocus={() => setMapsLinkFocus(true)}
+                    onBlur={() => setMapsLinkFocus(false)}
+                  />
+                  {mapsLinkFocus && mapsLink && !validMapsLink && (
+                    <p className="input-requirements">
+                      <FontAwesomeIcon icon={faInfoCircle} />
+                      Please enter a valid Google Maps link with coordinates
+                      (e.g.,
+                      <br />
+                      `https://www.google.com/maps/place/Someplace/@12.345,-67.890,...`).
+                    </p>
+                  )}
                 </div>
 
                 <div className="form-group">
@@ -467,17 +496,12 @@ const Register: React.FC<RegisterProps> = ({ onRegisterSuccess }) => {
 
                 <button
                   className="register-button"
-                  disabled={!validName || !validPwd || !validMatch}
+                  disabled={!validName || !validPwd || !validMatch || foodType === 'none'}
                 >
                   Sign Up
                 </button>
               </form>
 
-              {/* <div className="login-link">
-              <p>
-                Already have an account? <Link to="/login">Sign In</Link>
-              </p>
-            </div> */}
             </>
           )}
         </div>
