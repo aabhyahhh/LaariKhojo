@@ -90,5 +90,9 @@ app.get("/api/all-users", async (req, res) => {
   }
 });
 
+app.get('/', (req, res) => {
+  res.status(200).send('Backend is live');
+});
+
 
 module.exports = app;
