@@ -90,9 +90,11 @@ app.get("/api/all-users", async (req, res) => {
   }
 });
 
-// Catch-all handler: send back React's index.html file for any non-API routes
+app.use(express.static(path.join(__dirname, 'dist')));
+
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../frontend/dist/index.html'));
+  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
+
 
 module.exports = app;
