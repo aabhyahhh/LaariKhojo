@@ -12,6 +12,8 @@ export interface Vendor {
   operatingHours?: any;
   updatedAt?: string;
   foodType?: 'veg' | 'non-veg' | 'swaminarayan' | 'jain' | 'none';
+  profilePicture?: string;
+  bestDishes?: Array<{ name: string; price?: number; menuLink?: string }>;
 }
 
 export interface ApiResponse<T> {
