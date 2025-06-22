@@ -4,14 +4,74 @@ import 'leaflet/dist/leaflet.css';
 import './MapPreview.css';
 import laari from '../assets/logo_cropped.png';
 
+interface Vendor {
+  _id: string;
+  name: string;
+  contactNumber?: string;
+  mapsLink?: string;
+  operatingHours?: {
+    openTime: string;
+    closeTime: string;
+    days: number[];
+  };
+  foodType?: string;
+}
+
 interface MapPreviewProps {
-  vendors?: any[];
+  vendors?: Vendor[];
 }
 
 const MapPreview: React.FC<MapPreviewProps> = ({ vendors = [] }) => {
   const mapRef = useRef<L.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Helper function to convert 12-hour AM/PM time to minutes from midnight
+  const convert12HourToMinutes = (timeStr: string): number => {
+    const time = timeStr.match(/(\d+):(\d+)\s?(AM|PM)/i);
+    if (!time) return 0;
+
+    let hours = parseInt(time[1], 10);
+    const minutes = parseInt(time[2], 10);
+    const period = time[3].toUpperCase();
+
+    if (period === 'PM' && hours < 12) hours += 12;
+    if (period === 'AM' && hours === 12) hours = 0;
+    return hours * 60 + minutes;
+  };
+
+  const getOperatingStatus = (operatingHours?: Vendor['operatingHours']) => {
+    if (!operatingHours || !operatingHours.openTime || !operatingHours.closeTime || !operatingHours.days || operatingHours.days.length === 0) {
+      return { status: 'Hours Not Specified', color: '#888' };
+    }
+    const now = new Date();
+    const currentDay = now.getDay();
+    const yesterdayDay = (currentDay - 1 + 7) % 7;
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+    const openTimeInMinutes = convert12HourToMinutes(operatingHours.openTime);
+    const closeTimeInMinutes = convert12HourToMinutes(operatingHours.closeTime);
+
+    let isOpen = false;
+    if (closeTimeInMinutes < openTimeInMinutes) {
+      if ((currentMinutes >= openTimeInMinutes && operatingHours.days.includes(currentDay)) ||
+          (currentMinutes <= closeTimeInMinutes && operatingHours.days.includes(yesterdayDay))) {
+        isOpen = true;
+      }
+    } else {
+      if (currentMinutes >= openTimeInMinutes && currentMinutes <= closeTimeInMinutes && operatingHours.days.includes(currentDay)) {
+        isOpen = true;
+      }
+    }
+
+    if (!isOpen) return { status: 'Closed', color: '#d9534f' };
+    
+    const timeUntilClose = (closeTimeInMinutes - currentMinutes + 1440) % 1440;
+    if (timeUntilClose > 0 && timeUntilClose <= 30) {
+      return { status: 'Closes Soon', color: '#f0ad4e' };
+    }
+    
+    return { status: 'Open Now', color: '#28a745' };
+  };
 
   useEffect(() => {
     if (!mapContainerRef.current) return;
@@ -120,7 +180,7 @@ const MapPreview: React.FC<MapPreviewProps> = ({ vendors = [] }) => {
     `);
   };
 
-  const addVendorMarkers = (vendorData: any[]) => {
+  const addVendorMarkers = (vendorData: Vendor[]) => {
     if (!mapRef.current) return;
 
     console.log("Processing vendor data for markers:", vendorData);
@@ -177,6 +237,8 @@ const MapPreview: React.FC<MapPreviewProps> = ({ vendors = [] }) => {
         if (coords) {
           console.log(`Adding marker for ${vendor.name} at:`, coords);
           
+          const { status, color } = getOperatingStatus(vendor.operatingHours);
+          
           const marker = L.marker(
             [coords.latitude, coords.longitude],
             { icon: vendorIcon }
@@ -203,9 +265,9 @@ const MapPreview: React.FC<MapPreviewProps> = ({ vendors = [] }) => {
                       <circle cx="12" cy="12" r="10"></circle>
                       <polyline points="12 6 12 12 16 14"></polyline>
                     </svg>
-                    <span style="color: #666; display: flex; align-items: center;">
-                      <span style="color: #28a745; margin-right: 4px;">●</span>
-                      Open Now
+                    <span style="color: ${color}; display: flex; align-items: center;">
+                      <span style="color: ${color}; margin-right: 4px;">●</span>
+                      ${status}
                       <svg style="width: 12px; height: 12px; margin-left: 4px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <polyline points="6 9 12 15 18 9"></polyline>
                       </svg>
@@ -216,8 +278,10 @@ const MapPreview: React.FC<MapPreviewProps> = ({ vendors = [] }) => {
                       <strong>Hours:</strong> ${vendor.operatingHours.openTime} - ${vendor.operatingHours.closeTime}
                     </div>
                     <div style="color: #666;">
-                      <strong>Days:</strong> ${vendor.operatingHours.days.map((day: number) => 
-                        ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][day]
+                      <strong>Days:</strong> ${vendor.operatingHours.days
+                        .sort((a: number, b: number) => (a === 0 ? 7 : a) - (b === 0 ? 7 : b)) // Sort days Mon-Sun
+                        .map((day: number) => 
+                        ['Sun', 'Mon', 'Tue', 'Wed', 'Thurs', 'Fri', 'Sat'][day]
                       ).join(', ')}
                     </div>
                   </div>

@@ -40,56 +40,71 @@ function MapDisplay() {
 
   const navigate = useNavigate();
 
-  // Helper function to determine vendor operating status and color
+  // Helper function to convert 12-hour AM/PM time to minutes from midnight
+  const convert12HourToMinutes = (timeStr: string): number => {
+    const time = timeStr.match(/(\d+):(\d+)\s?(AM|PM)/i);
+    if (!time) return 0;
+
+    let hours = parseInt(time[1], 10);
+    const minutes = parseInt(time[2], 10);
+    const period = time[3].toUpperCase();
+
+    if (period === 'PM' && hours < 12) {
+      hours += 12;
+    }
+    if (period === 'AM' && hours === 12) { // Handle midnight case (12:xx AM)
+      hours = 0;
+    }
+    return hours * 60 + minutes;
+  };
+
   const getOperatingStatus = (operatingHours?: OperatingHours) => {
-    if (!operatingHours || !operatingHours.openTime || !operatingHours.closeTime || !operatingHours.days) {
+    if (!operatingHours || !operatingHours.openTime || !operatingHours.closeTime || !operatingHours.days || operatingHours.days.length === 0) {
       return { status: 'Hours Not Specified', color: '#888' };
     }
 
     const now = new Date();
-    const currentDay = now.getDay(); // 0 for Sunday, 6 for Saturday
+    const currentDay = now.getDay(); // 0 = Sunday, 6 = Saturday
+    const yesterdayDay = (currentDay - 1 + 7) % 7; // The day before today
     const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
-    const [openHours, openMinutes] = operatingHours.openTime.split(':').map(Number);
-    const [closeHours, closeMinutes] = operatingHours.closeTime.split(':').map(Number);
+    const openTimeInMinutes = convert12HourToMinutes(operatingHours.openTime);
+    const closeTimeInMinutes = convert12HourToMinutes(operatingHours.closeTime);
 
-    const openTimeInMinutes = openHours * 60 + openMinutes;
-    let closeTimeInMinutes = closeHours * 60 + closeMinutes;
-
-    // Handle overnight closing (e.g., opens 22:00, closes 02:00)
+    let isOpen = false;
+    // Case 1: Overnight schedule (e.g., 10 PM - 2 AM)
     if (closeTimeInMinutes < openTimeInMinutes) {
-      if (currentMinutes >= openTimeInMinutes || currentMinutes <= closeTimeInMinutes) {
-        // Within operating hours (including overnight)
-      } else {
-        return { status: 'Closed', color: '#d9534f' };
+      // Are we in the evening part of the schedule? (e.g., after 10 PM)
+      const isPostMidnight = currentMinutes >= openTimeInMinutes;
+      // Are we in the morning part of the schedule? (e.g., before 2 AM)
+      const isPreMidnight = currentMinutes <= closeTimeInMinutes;
+
+      if (isPostMidnight && operatingHours.days.includes(currentDay)) {
+        isOpen = true;
+      } else if (isPreMidnight && operatingHours.days.includes(yesterdayDay)) {
+        isOpen = true;
       }
-    } else {
-      // Standard same-day closing
-      if (currentMinutes < openTimeInMinutes || currentMinutes > closeTimeInMinutes) {
-        return { status: 'Closed', color: '#d9534f' };
+    }
+    // Case 2: Same-day schedule
+    else {
+      if (currentMinutes >= openTimeInMinutes && currentMinutes <= closeTimeInMinutes && operatingHours.days.includes(currentDay)) {
+        isOpen = true;
       }
     }
 
-    // Check if it's the right day
-    if (!operatingHours.days.includes(currentDay)) {
-      return { status: 'Closed Today', color: '#d9534f' };
+    if (!isOpen) {
+      return { status: 'Closed', color: '#d9534f' };
     }
 
-    // Check for 'Closes Soon' (within 30 minutes)
+    // If open, check if it's closing soon
     const closesSoonThreshold = 30; // minutes
-    if (closeTimeInMinutes < openTimeInMinutes) { // Overnight closing
-      // Calculate time until close for today/tomorrow
-      const timeUntilClose = (closeTimeInMinutes - currentMinutes + 1440) % 1440; 
-      if (timeUntilClose <= closesSoonThreshold) {
-        return { status: 'Closes Soon', color: '#f0ad4e' }; // Orange for closes soon
-      }
-    } else { // Same day closing
-      if (closeTimeInMinutes - currentMinutes > 0 && closeTimeInMinutes - currentMinutes <= closesSoonThreshold) {
-        return { status: 'Closes Soon', color: '#f0ad4e' };
-      }
+    let timeUntilClose = (closeTimeInMinutes - currentMinutes + 1440) % 1440;
+    
+    if (timeUntilClose > 0 && timeUntilClose <= closesSoonThreshold) {
+      return { status: 'Closes Soon', color: '#f0ad4e' };
     }
 
-    return { status: 'Open Now', color: '#28a745' }; // Green for open
+    return { status: 'Open Now', color: '#28a745' };
   };
 
   // Alternative: IP-based location fallback
@@ -173,24 +188,48 @@ function MapDisplay() {
     try {
       console.log("Attempting to extract coordinates from:", mapsLink);
 
-      // Try multiple regex patterns to handle different Google Maps URL formats
-      const patterns = [
-        /@(-?\d+\.\d+),(-?\d+\.\d+)/, // Standard format
-        /!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/, // Alternate format
-        /place\/.*\/@(-?\d+\.\d+),(-?\d+\.\d+)/, // Place format
-        /q=(-?\d+\.\d+),(-?\d+\.\d+)/, // Query format
-      ];
+      // Prefer !3d...!4d... pattern (actual place coordinates)
+      let match = mapsLink.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/);
+      if (match) {
+        const coords = {
+          latitude: parseFloat(match[1]),
+          longitude: parseFloat(match[2]),
+        };
+        console.log("Extracted coordinates from !3d...!4d...:", coords);
+        return coords;
+      }
 
-      for (const pattern of patterns) {
-        const match = mapsLink.match(pattern);
+      // Fallback to @lat,lng
+      match = mapsLink.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+      if (match) {
+        const coords = {
+          latitude: parseFloat(match[1]),
+          longitude: parseFloat(match[2]),
+        };
+        console.log("Extracted coordinates from @lat,lng:", coords);
+        return coords;
+      }
+
+      // Fallback to place/@lat,lng
+      match = mapsLink.match(/place\/.*\/@(-?\d+\.\d+),(-?\d+\.\d+)/);
         if (match) {
           const coords = {
             latitude: parseFloat(match[1]),
             longitude: parseFloat(match[2]),
           };
-          console.log("Successfully extracted coordinates:", coords);
+        console.log("Extracted coordinates from place/@lat,lng:", coords);
           return coords;
         }
+
+      // Fallback to q=lat,lng
+      match = mapsLink.match(/q=(-?\d+\.\d+),(-?\d+\.\d+)/);
+      if (match) {
+        const coords = {
+          latitude: parseFloat(match[1]),
+          longitude: parseFloat(match[2]),
+        };
+        console.log("Extracted coordinates from q=lat,lng:", coords);
+        return coords;
       }
 
       console.error("No coordinates found in URL");
@@ -397,6 +436,9 @@ function MapDisplay() {
 
       const { status, color } = getOperatingStatus(vendor.operatingHours);
 
+      // Add this line for debugging
+      console.log('Vendor Operating Hours for Popup:', vendor.name, vendor.operatingHours);
+
       // Create popup content with icons and collapsible operating hours
       const popupContent = `
         <div class="custom-popup" style="font-size: 12px; line-height: 1.4; min-width: 200px;">
@@ -431,8 +473,10 @@ function MapDisplay() {
                   <strong>Hours:</strong> ${vendor.operatingHours.openTime} - ${vendor.operatingHours.closeTime}
                 </div>
                 <div style="color: #666;">
-                  <strong>Days:</strong> ${vendor.operatingHours.days.map((day: number) => 
-                    ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][day]
+                  <strong>Days:</strong> ${vendor.operatingHours.days
+                    .sort((a: number, b: number) => (a === 0 ? 7 : a) - (b === 0 ? 7 : b)) // Sort days Mon-Sun
+                    .map((day: number) => 
+                    ['Sun', 'Mon', 'Tue', 'Wed', 'Thurs', 'Fri', 'Sat'][day]
                   ).join(', ')}
                 </div>
               </div>
