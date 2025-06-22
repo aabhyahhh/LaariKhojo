@@ -40,21 +40,12 @@ function MapDisplay() {
 
   const navigate = useNavigate();
 
-  // Helper function to convert 12-hour AM/PM time to minutes from midnight
-  const convert12HourToMinutes = (timeStr: string): number => {
-    const time = timeStr.match(/(\d+):(\d+)\s?(AM|PM)/i);
+  // Helper function to convert 24-hour time (HH:mm) to minutes from midnight
+  const convert24HourToMinutes = (timeStr: string): number => {
+    const time = timeStr.match(/^(\d{1,2}):(\d{2})$/);
     if (!time) return 0;
-
-    let hours = parseInt(time[1], 10);
+    const hours = parseInt(time[1], 10);
     const minutes = parseInt(time[2], 10);
-    const period = time[3].toUpperCase();
-
-    if (period === 'PM' && hours < 12) {
-      hours += 12;
-    }
-    if (period === 'AM' && hours === 12) { // Handle midnight case (12:xx AM)
-      hours = 0;
-    }
     return hours * 60 + minutes;
   };
 
@@ -68,15 +59,13 @@ function MapDisplay() {
     const yesterdayDay = (currentDay - 1 + 7) % 7; // The day before today
     const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
-    const openTimeInMinutes = convert12HourToMinutes(operatingHours.openTime);
-    const closeTimeInMinutes = convert12HourToMinutes(operatingHours.closeTime);
+    const openTimeInMinutes = convert24HourToMinutes(operatingHours.openTime);
+    const closeTimeInMinutes = convert24HourToMinutes(operatingHours.closeTime);
 
     let isOpen = false;
-    // Case 1: Overnight schedule (e.g., 10 PM - 2 AM)
+    // Case 1: Overnight schedule (e.g., 22:00 - 02:00)
     if (closeTimeInMinutes < openTimeInMinutes) {
-      // Are we in the evening part of the schedule? (e.g., after 10 PM)
       const isPostMidnight = currentMinutes >= openTimeInMinutes;
-      // Are we in the morning part of the schedule? (e.g., before 2 AM)
       const isPreMidnight = currentMinutes <= closeTimeInMinutes;
 
       if (isPostMidnight && operatingHours.days.includes(currentDay)) {

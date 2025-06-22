@@ -26,17 +26,12 @@ const MapPreview: React.FC<MapPreviewProps> = ({ vendors = [] }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Helper function to convert 12-hour AM/PM time to minutes from midnight
-  const convert12HourToMinutes = (timeStr: string): number => {
-    const time = timeStr.match(/(\d+):(\d+)\s?(AM|PM)/i);
+  // Helper function to convert 24-hour time (HH:mm) to minutes from midnight
+  const convert24HourToMinutes = (timeStr: string): number => {
+    const time = timeStr.match(/^(\d{1,2}):(\d{2})$/);
     if (!time) return 0;
-
-    let hours = parseInt(time[1], 10);
+    const hours = parseInt(time[1], 10);
     const minutes = parseInt(time[2], 10);
-    const period = time[3].toUpperCase();
-
-    if (period === 'PM' && hours < 12) hours += 12;
-    if (period === 'AM' && hours === 12) hours = 0;
     return hours * 60 + minutes;
   };
 
@@ -48,8 +43,8 @@ const MapPreview: React.FC<MapPreviewProps> = ({ vendors = [] }) => {
     const currentDay = now.getDay();
     const yesterdayDay = (currentDay - 1 + 7) % 7;
     const currentMinutes = now.getHours() * 60 + now.getMinutes();
-    const openTimeInMinutes = convert12HourToMinutes(operatingHours.openTime);
-    const closeTimeInMinutes = convert12HourToMinutes(operatingHours.closeTime);
+    const openTimeInMinutes = convert24HourToMinutes(operatingHours.openTime);
+    const closeTimeInMinutes = convert24HourToMinutes(operatingHours.closeTime);
 
     let isOpen = false;
     if (closeTimeInMinutes < openTimeInMinutes) {
