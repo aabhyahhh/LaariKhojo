@@ -37,59 +37,65 @@ function MapDisplay() {
   const [currentZoom, setCurrentZoom] = useState<number>(13);
   const [isMapInitialized, setIsMapInitialized] = useState<boolean>(false);
   const [isLocationLoading, setIsLocationLoading] = useState<boolean>(true);
+  const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null);
+  const [isVendorCardVisible, setIsVendorCardVisible] = useState<boolean>(false);
 
   const navigate = useNavigate();
 
-  // Helper function to determine vendor operating status and color
+  // Helper function to convert 24-hour time (HH:mm) to minutes from midnight
+  const convert24HourToMinutes = (timeStr: string): number => {
+    const time = timeStr.match(/^(\d{1,2}):(\d{2})$/);
+    if (!time) return 0;
+    const hours = parseInt(time[1], 10);
+    const minutes = parseInt(time[2], 10);
+    return hours * 60 + minutes;
+  };
+
   const getOperatingStatus = (operatingHours?: OperatingHours) => {
-    if (!operatingHours || !operatingHours.openTime || !operatingHours.closeTime || !operatingHours.days) {
+    if (!operatingHours || !operatingHours.openTime || !operatingHours.closeTime || !operatingHours.days || operatingHours.days.length === 0) {
       return { status: 'Hours Not Specified', color: '#888' };
     }
 
     const now = new Date();
-    const currentDay = now.getDay(); // 0 for Sunday, 6 for Saturday
+    const currentDay = now.getDay(); // 0 = Sunday, 6 = Saturday
+    const yesterdayDay = (currentDay - 1 + 7) % 7; // The day before today
     const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
-    const [openHours, openMinutes] = operatingHours.openTime.split(':').map(Number);
-    const [closeHours, closeMinutes] = operatingHours.closeTime.split(':').map(Number);
+    const openTimeInMinutes = convert24HourToMinutes(operatingHours.openTime);
+    const closeTimeInMinutes = convert24HourToMinutes(operatingHours.closeTime);
 
-    const openTimeInMinutes = openHours * 60 + openMinutes;
-    let closeTimeInMinutes = closeHours * 60 + closeMinutes;
-
-    // Handle overnight closing (e.g., opens 22:00, closes 02:00)
+    let isOpen = false;
+    // Case 1: Overnight schedule (e.g., 22:00 - 02:00)
     if (closeTimeInMinutes < openTimeInMinutes) {
-      if (currentMinutes >= openTimeInMinutes || currentMinutes <= closeTimeInMinutes) {
-        // Within operating hours (including overnight)
-      } else {
-        return { status: 'Closed', color: '#d9534f' };
+      const isPostMidnight = currentMinutes >= openTimeInMinutes;
+      const isPreMidnight = currentMinutes <= closeTimeInMinutes;
+
+      if (isPostMidnight && operatingHours.days.includes(currentDay)) {
+        isOpen = true;
+      } else if (isPreMidnight && operatingHours.days.includes(yesterdayDay)) {
+        isOpen = true;
       }
-    } else {
-      // Standard same-day closing
-      if (currentMinutes < openTimeInMinutes || currentMinutes > closeTimeInMinutes) {
-        return { status: 'Closed', color: '#d9534f' };
+    }
+    // Case 2: Same-day schedule
+    else {
+      if (currentMinutes >= openTimeInMinutes && currentMinutes <= closeTimeInMinutes && operatingHours.days.includes(currentDay)) {
+        isOpen = true;
       }
     }
 
-    // Check if it's the right day
-    if (!operatingHours.days.includes(currentDay)) {
-      return { status: 'Closed Today', color: '#d9534f' };
+    if (!isOpen) {
+      return { status: 'Closed', color: '#d9534f' };
     }
 
-    // Check for 'Closes Soon' (within 30 minutes)
+    // If open, check if it's closing soon
     const closesSoonThreshold = 30; // minutes
-    if (closeTimeInMinutes < openTimeInMinutes) { // Overnight closing
-      // Calculate time until close for today/tomorrow
-      const timeUntilClose = (closeTimeInMinutes - currentMinutes + 1440) % 1440; 
-      if (timeUntilClose <= closesSoonThreshold) {
-        return { status: 'Closes Soon', color: '#f0ad4e' }; // Orange for closes soon
-      }
-    } else { // Same day closing
-      if (closeTimeInMinutes - currentMinutes > 0 && closeTimeInMinutes - currentMinutes <= closesSoonThreshold) {
-        return { status: 'Closes Soon', color: '#f0ad4e' };
-      }
+    let timeUntilClose = (closeTimeInMinutes - currentMinutes + 1440) % 1440;
+    
+    if (timeUntilClose > 0 && timeUntilClose <= closesSoonThreshold) {
+      return { status: 'Closes Soon', color: '#f0ad4e' };
     }
 
-    return { status: 'Open Now', color: '#28a745' }; // Green for open
+    return { status: 'Open Now', color: '#28a745' };
   };
 
   // Alternative: IP-based location fallback
@@ -173,24 +179,48 @@ function MapDisplay() {
     try {
       console.log("Attempting to extract coordinates from:", mapsLink);
 
-      // Try multiple regex patterns to handle different Google Maps URL formats
-      const patterns = [
-        /@(-?\d+\.\d+),(-?\d+\.\d+)/, // Standard format
-        /!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/, // Alternate format
-        /place\/.*\/@(-?\d+\.\d+),(-?\d+\.\d+)/, // Place format
-        /q=(-?\d+\.\d+),(-?\d+\.\d+)/, // Query format
-      ];
+      // Prefer !3d...!4d... pattern (actual place coordinates)
+      let match = mapsLink.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/);
+      if (match) {
+        const coords = {
+          latitude: parseFloat(match[1]),
+          longitude: parseFloat(match[2]),
+        };
+        console.log("Extracted coordinates from !3d...!4d...:", coords);
+        return coords;
+      }
 
-      for (const pattern of patterns) {
-        const match = mapsLink.match(pattern);
+      // Fallback to @lat,lng
+      match = mapsLink.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+      if (match) {
+        const coords = {
+          latitude: parseFloat(match[1]),
+          longitude: parseFloat(match[2]),
+        };
+        console.log("Extracted coordinates from @lat,lng:", coords);
+        return coords;
+      }
+
+      // Fallback to place/@lat,lng
+      match = mapsLink.match(/place\/.*\/@(-?\d+\.\d+),(-?\d+\.\d+)/);
         if (match) {
           const coords = {
             latitude: parseFloat(match[1]),
             longitude: parseFloat(match[2]),
           };
-          console.log("Successfully extracted coordinates:", coords);
+        console.log("Extracted coordinates from place/@lat,lng:", coords);
           return coords;
         }
+
+      // Fallback to q=lat,lng
+      match = mapsLink.match(/q=(-?\d+\.\d+),(-?\d+\.\d+)/);
+      if (match) {
+        const coords = {
+          latitude: parseFloat(match[1]),
+          longitude: parseFloat(match[2]),
+        };
+        console.log("Extracted coordinates from q=lat,lng:", coords);
+        return coords;
       }
 
       console.error("No coordinates found in URL");
@@ -397,57 +427,34 @@ function MapDisplay() {
 
       const { status, color } = getOperatingStatus(vendor.operatingHours);
 
+      // Add this line for debugging
+      console.log('Vendor Operating Hours for Popup:', vendor.name, vendor.operatingHours);
+
       // Create popup content with icons and collapsible operating hours
       const popupContent = `
-        <div class="custom-popup" style="font-size: 12px; line-height: 1.4; min-width: 200px;">
-          <h3 style="margin: 0 0 8px 0; font-size: 14px; font-weight: 600; color: #2c3e50;">${vendor.name}</h3>
-          
-          ${vendor.contactNumber ? `
-            <div style="display: flex; align-items: center; margin-bottom: 6px;">
-              <svg style="width: 14px; height: 14px; margin-right: 8px; color: #666;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
-              </svg>
-              <span style="color: #666;">${vendor.contactNumber}</span>
-            </div>
-          ` : ''}
-
-          ${vendor.operatingHours ? `
-            <div style="margin-bottom: 6px;">
-              <div style="display: flex; align-items: center; cursor: pointer;" onclick="this.parentElement.querySelector('.hours-details').style.display = this.parentElement.querySelector('.hours-details').style.display === 'none' ? 'block' : 'none'">
-                <svg style="width: 14px; height: 14px; margin-right: 8px; color: #666;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <circle cx="12" cy="12" r="10"></circle>
-                  <polyline points="12 6 12 12 16 14"></polyline>
-                </svg>
-                <span style="color: ${color}; display: flex; align-items: center;">
-                  <span style="color: ${color}; margin-right: 4px;">●</span>
-                  ${status}
-                  <svg style="width: 12px; height: 12px; margin-left: 4px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polyline points="6 9 12 15 18 9"></polyline>
-                  </svg>
-                </span>
+        <div class="custom-popup" style="font-size: 12px; line-height: 1.4; min-width: 200px; cursor: pointer;" onclick="window.openVendorCard('${vendor._id}')">
+          <div style="display: flex; align-items: flex-start; margin-bottom: 8px;">
+            ${vendor.profilePicture ? `
+              <img src="${vendor.profilePicture}" alt="${vendor.name}" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; margin-right: 12px; border: 2px solid #ddd;" />
+            ` : `
+              <div style="width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); margin-right: 12px; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 16px;">
+                ${(vendor.name?.charAt(0) || '?').toUpperCase()}
               </div>
-              <div class="hours-details" style="display: none; margin-left: 22px; margin-top: 4px; padding-top: 4px; border-top: 1px solid #eee;">
-                <div style="color: #666; margin-bottom: 2px;">
-                  <strong>Hours:</strong> ${vendor.operatingHours.openTime} - ${vendor.operatingHours.closeTime}
+            `}
+            <div style="flex: 1;">
+              <h3 style="margin: 0 0 4px 0; font-size: 14px; font-weight: 600; color: #2c3e50;">${vendor.name}</h3>
+              ${vendor.foodType ? `<div style="color: #666; font-size: 11px; margin-bottom: 4px;">${vendor.foodType}</div>` : ''}
+              ${vendor.operatingHours ? `
+                <div style="display: flex; align-items: center;">
+                  <span style="color: ${color}; margin-right: 4px; font-size: 10px;">●</span>
+                  <span style="color: ${color}; font-size: 11px;">${status}</span>
                 </div>
-                <div style="color: #666;">
-                  <strong>Days:</strong> ${vendor.operatingHours.days.map((day: number) => 
-                    ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][day]
-                  ).join(', ')}
-                </div>
-              </div>
+              ` : ''}
             </div>
-          ` : ''}
-
-          ${vendor.mapsLink ? `
-            <div style="display: flex; align-items: center;">
-              <svg style="width: 14px; height: 14px; margin-right: 8px; color: #666;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-                <circle cx="12" cy="10" r="3"></circle>
-              </svg>
-              <a href="${vendor.mapsLink}" target="_blank" style="color: #007bff; text-decoration: none; font-size: 12px;">View on Maps</a>
-            </div>
-          ` : ''}
+          </div>
+          <div style="text-align: center; color: #007bff; font-size: 11px; font-weight: 500; margin-top: 8px; padding-top: 8px; border-top: 1px solid #eee;">
+            Click to view full details →
+          </div>
         </div>
       `;
 
@@ -565,6 +572,24 @@ function MapDisplay() {
     getUserLocation();
   };
 
+  // Add open/close functions
+  const openVendorCard = (vendor: Vendor) => {
+    setSelectedVendor(vendor);
+    setIsVendorCardVisible(true);
+  };
+  const closeVendorCard = () => {
+    setSelectedVendor(null);
+    setIsVendorCardVisible(false);
+  };
+
+  // Add global handler
+  (window as any).openVendorCard = (vendorId: string) => {
+    const vendor = vendors.find(v => v._id === vendorId);
+    if (vendor) {
+      openVendorCard(vendor);
+    }
+  };
+
   return (
     <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column" }}>
       {/* Logo in top-left for MapDisplay */}
@@ -674,6 +699,308 @@ function MapDisplay() {
             `}
           </style>
         </div>
+      )}
+      {isVendorCardVisible && selectedVendor && (
+        <div 
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '320px',
+            height: '100vh',
+            backgroundColor: 'white',
+            zIndex: 2000,
+            boxShadow: '2px 0 15px rgba(0,0,0,0.15)',
+            overflow: 'auto',
+            transform: isVendorCardVisible ? 'translateX(0)' : 'translateX(-100%)',
+            transition: 'transform 0.3s ease-in-out'
+          }}
+        >
+          <button
+            onClick={closeVendorCard}
+            style={{
+              position: 'absolute',
+              top: '12px',
+              right: '12px',
+              background: 'rgba(0,0,0,0.1)',
+              border: 'none',
+              fontSize: '20px',
+              cursor: 'pointer',
+              color: '#666',
+              zIndex: 2001,
+              width: '32px',
+              height: '32px',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'background-color 0.2s'
+            }}
+            onMouseEnter={(e) => (e.target as HTMLButtonElement).style.backgroundColor = 'rgba(0,0,0,0.2)'}
+            onMouseLeave={(e) => (e.target as HTMLButtonElement).style.backgroundColor = 'rgba(0,0,0,0.1)'}
+          >
+            ×
+          </button>
+          
+          <div style={{ padding: '20px 16px' }}>
+            {/* Profile Picture and Name */}
+            <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+              {selectedVendor.profilePicture ? (
+                <img
+                  src={selectedVendor.profilePicture}
+                  alt={selectedVendor.name || 'Vendor'}
+                  style={{
+                    width: '70px',
+                    height: '70px',
+                    borderRadius: '50%',
+                    objectFit: 'cover',
+                    border: '3px solid #eee',
+                    marginBottom: '8px',
+                  }}
+                />
+              ) : (
+                <div style={{
+                  width: '70px',
+                  height: '70px',
+                  borderRadius: '50%',
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'white',
+                  fontSize: '28px',
+                  fontWeight: 'bold',
+                  marginBottom: '8px',
+                }}>
+                  {(selectedVendor.name?.charAt(0) || '?').toUpperCase()}
+                </div>
+              )}
+              <h2 style={{ 
+                margin: '8px 0 4px 0', 
+                color: '#2c3e50', 
+                fontSize: '18px',
+                fontWeight: '600',
+                lineHeight: '1.2'
+              }}>
+                {selectedVendor.name || 'Not available'}
+              </h2>
+              <div style={{ 
+                color: '#666', 
+                marginBottom: '12px', 
+                fontSize: '13px',
+                fontWeight: '500'
+              }}>
+                {selectedVendor.foodType || 'Not available'}
+              </div>
+            </div>
+
+            {/* Operating Status */}
+            {selectedVendor.operatingHours && (
+              <div style={{
+                textAlign: 'center',
+                marginBottom: '16px',
+                padding: '8px 12px',
+                backgroundColor: '#f8f9fa',
+                borderRadius: '12px',
+                border: '1px solid #e9ecef'
+              }}>
+                <div style={{
+                  color: getOperatingStatus(selectedVendor.operatingHours).color,
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '4px'
+                }}>
+                  <span style={{ fontSize: '8px' }}>●</span>
+                  {getOperatingStatus(selectedVendor.operatingHours).status}
+                </div>
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div style={{ 
+              display: 'flex', 
+              gap: '8px', 
+              marginBottom: '20px',
+              justifyContent: 'center'
+            }}>
+              <a
+                href={selectedVendor.mapsLink || '#'}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '10px 16px',
+                  backgroundColor: '#007bff',
+                  color: 'white',
+                  borderRadius: '8px',
+                  textDecoration: 'none',
+                  fontWeight: '500',
+                  fontSize: '13px',
+                  transition: 'background-color 0.2s',
+                  flex: 1,
+                  justifyContent: 'center'
+                }}
+              >
+                📍 Directions
+              </a>
+              {selectedVendor.contactNumber && (
+                <a
+                  href={`tel:${selectedVendor.contactNumber}`}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '10px 16px',
+                    backgroundColor: '#28a745',
+                    color: 'white',
+                    borderRadius: '8px',
+                    textDecoration: 'none',
+                    fontWeight: '500',
+                    fontSize: '13px',
+                    transition: 'background-color 0.2s',
+                    flex: 1,
+                    justifyContent: 'center'
+                  }}
+                >
+                  📞 Call
+                </a>
+              )}
+            </div>
+
+            {/* Contact Number */}
+            <div style={{ 
+              marginBottom: '16px', 
+              fontSize: '13px',
+              textAlign: 'center',
+              color: '#666'
+            }}>
+              <strong>Phone:</strong> {selectedVendor.contactNumber || 'Not available'}
+            </div>
+
+            {/* Operating Hours and Days - Compact */}
+            <div style={{ 
+              marginBottom: '20px', 
+              fontSize: '13px', 
+              color: '#444',
+              backgroundColor: '#f8f9fa',
+              padding: '12px',
+              borderRadius: '8px',
+              border: '1px solid #e9ecef'
+            }}>
+              <div style={{ marginBottom: '6px' }}>
+                <strong>Hours:</strong> {
+                  selectedVendor.operatingHours && 
+                  selectedVendor.operatingHours.openTime && 
+                  selectedVendor.operatingHours.closeTime 
+                    ? `${selectedVendor.operatingHours.openTime} - ${selectedVendor.operatingHours.closeTime}` 
+                    : 'Not available'
+                }
+              </div>
+              <div>
+                <strong>Days:</strong> {
+                  selectedVendor.operatingHours && 
+                  selectedVendor.operatingHours.days && 
+                  selectedVendor.operatingHours.days.length > 0 
+                    ? selectedVendor.operatingHours.days
+                        .sort((a: number, b: number) => (a === 0 ? 7 : a) - (b === 0 ? 7 : b))
+                        .map((day: number) => ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][day])
+                        .join(', ') 
+                    : 'Not available'
+                }
+              </div>
+            </div>
+
+            {/* Menu Options - Compact */}
+            <div style={{ textAlign: 'left' }}>
+              <h3 style={{ 
+                fontSize: '15px', 
+                color: '#2c3e50', 
+                margin: '0 0 12px 0',
+                fontWeight: '600'
+              }}>
+                Menu
+              </h3>
+              {Array.isArray(selectedVendor.bestDishes ?? []) && (selectedVendor.bestDishes ?? []).length > 0 ? (
+                <div style={{ 
+                  maxHeight: '200px', 
+                  overflowY: 'auto',
+                  backgroundColor: '#f8f9fa',
+                  padding: '12px',
+                  borderRadius: '8px',
+                  border: '1px solid #e9ecef'
+                }}>
+                  {(selectedVendor.bestDishes ?? []).slice(0, 8).map((dish, idx) => (
+                    <div key={idx} style={{ 
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      marginBottom: '8px',
+                      fontSize: '13px',
+                      color: '#444',
+                      paddingBottom: '6px',
+                      borderBottom: idx < Math.min((selectedVendor.bestDishes ?? []).length - 1, 7) ? '1px solid #e9ecef' : 'none'
+                    }}>
+                      <span style={{ 
+                        fontWeight: '500',
+                        flex: 1,
+                        paddingRight: '8px'
+                      }}>
+                        {dish.name || 'Not available'}
+                      </span>
+                      {dish.price !== undefined && dish.price !== null ? (
+                        <span style={{ 
+                          color: '#28a745', 
+                          fontWeight: '600',
+                          fontSize: '12px'
+                        }}>
+                          ₹{dish.price}
+                        </span>
+                      ) : (
+                        <span style={{ 
+                          color: '#888', 
+                          fontSize: '11px'
+                        }}>
+                          N/A
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ 
+                  color: '#888', 
+                  fontSize: '13px',
+                  textAlign: 'center',
+                  padding: '20px',
+                  backgroundColor: '#f8f9fa',
+                  borderRadius: '8px',
+                  border: '1px solid #e9ecef'
+                }}>
+                  Menu not available
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+      {isVendorCardVisible && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100vw',
+            height: '100vh',
+            backgroundColor: 'rgba(0,0,0,0.3)',
+            zIndex: 1999
+          }}
+          onClick={closeVendorCard}
+        />
       )}
     </div>
   );

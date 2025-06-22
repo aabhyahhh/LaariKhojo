@@ -14,7 +14,11 @@ interface Vendor {
   email?: string;
   contactNumber: string;
   mapsLink: string;
-  operatingHours: { /* ... */ }; // Simplified, adjust as needed
+  operatingHours: {
+    openTime: string;
+    closeTime: string;
+    days: number[];
+  };
 }
 
 const HomeScreen: React.FC = () => {
@@ -106,6 +110,80 @@ const HomeScreen: React.FC = () => {
   useEffect(() => {
     fetchVendors(); // Fetch vendors on component mount
   }, []);
+
+  const haversineDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const toRad = (x: number) => (x * Math.PI) / 180;
+    const R = 6371; // Radius of Earth in km
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  };
+
+  const extractCoordinates = (mapsLink: string) => {
+    // Try !3d...!4d... pattern
+    let match = mapsLink.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/);
+    if (match) {
+      return { latitude: parseFloat(match[1]), longitude: parseFloat(match[2]) };
+    }
+    // Try @lat,lng
+    match = mapsLink.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+    if (match) {
+      return { latitude: parseFloat(match[1]), longitude: parseFloat(match[2]) };
+    }
+    // Try place/@lat,lng
+    match = mapsLink.match(/place\/.*\/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+    if (match) {
+      return { latitude: parseFloat(match[1]), longitude: parseFloat(match[2]) };
+    }
+    // Try q=lat,lng
+    match = mapsLink.match(/q=(-?\d+\.\d+),(-?\d+\.\d+)/);
+    if (match) {
+      return { latitude: parseFloat(match[1]), longitude: parseFloat(match[2]) };
+    }
+    return null;
+  };
+
+  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [nearbyCount, setNearbyCount] = useState<number>(0);
+
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setUserLocation({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          });
+        },
+        (error) => {
+          setUserLocation(null);
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+      );
+    }
+  }, []);
+
+  useEffect(() => {
+    if (userLocation && vendors.length > 0) {
+      const count = vendors.filter((vendor) => {
+        const coords = extractCoordinates(vendor.mapsLink);
+        if (!coords) return false;
+        const dist = haversineDistance(
+          userLocation.latitude,
+          userLocation.longitude,
+          coords.latitude,
+          coords.longitude
+        );
+        return dist <= 2;
+      }).length;
+      setNearbyCount(count);
+    }
+  }, [userLocation, vendors]);
 
   return (
     <div className="home-container">
@@ -206,10 +284,12 @@ const HomeScreen: React.FC = () => {
           </svg>
         </button>
         <div style={{ padding: "0 5px 5px 5px", fontSize: "20px", textAlign: "center" }}>
-         {/*} <p style={{ fontSize: "16px", color: "#555", marginBottom: "5px" }}>
-            <span style={{ marginRight: "5px" }}>📍</span>Showing vendors near your location
-          </p> */}
-          <p style={{ fontSize: "16px", color: "#ff0028", fontWeight: "bold", alignItems: "center", marginTop:'20px' }}><span style={{ marginRight: "5px" }}>📍</span>{vendors.length} vendors currently near you</p>
+          {userLocation && (
+            <p style={{ fontSize: "16px", color: "#ff0028", fontWeight: "bold", alignItems: "center", marginTop:'20px' }}>
+              <span style={{ marginRight: "5px" }}>📍</span>{nearbyCount} vendors within 2km radius
+            </p>
+          )}
+          <p style={{ fontSize: "16px", color: "#ff0028", fontWeight: "bold", alignItems: "center", marginTop:'20px' }}><span style={{ marginRight: "5px" }}>Total</span>{vendors.length} vendors live on Laari Khojo!</p>
         </div>
       </div>
 
