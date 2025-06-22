@@ -5,12 +5,12 @@ const operatingHoursSchema = new mongoose.Schema({
   openTime: {
     type: String,
     required: true,
-    match: /^(0?[1-9]|1[0-2]):[0-5][0-9]\s(AM|PM)$/i // Validates 12-hour format e.g., "9:00 AM"
+    match: /^([01]?\d|2[0-3]):[0-5]\d$/ // Validates 24-hour format e.g., "09:00", "18:30"
   },
   closeTime: {
     type: String,
     required: true,
-    match: /^(0?[1-9]|1[0-2]):[0-5][0-9]\s(AM|PM)$/i // Validates 12-hour format e.g., "10:30 PM"
+    match: /^([01]?\d|2[0-3]):[0-5]\d$/ // Validates 24-hour format e.g., "21:00", "02:30"
   },
   days: [{
     type: Number,

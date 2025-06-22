@@ -21,6 +21,18 @@ const formatTime = (timeStr) => {
     return timeStr.trim().toUpperCase().replace(/\s+/g, ' ');
 };
 
+// Function to convert 12-hour (AM/PM) time string to 24-hour format
+function convertTo24Hour(timeStr) {
+  if (typeof timeStr !== 'string') return timeStr;
+  const match = timeStr.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (!match) return timeStr; // Already 24-hour or invalid, return as is
+  let [_, hour, minute, period] = match;
+  hour = parseInt(hour, 10);
+  if (period.toUpperCase() === "PM" && hour !== 12) hour += 12;
+  if (period.toUpperCase() === "AM" && hour === 12) hour = 0;
+  return `${hour.toString().padStart(2, "0")}:${minute}`;
+}
+
 const migrateVendorData = async () => {
   if (!MONGO_URI) {
     console.error("MONGO_URI not found in .env file. Please add it.");
@@ -60,13 +72,13 @@ const migrateVendorData = async () => {
         updateFields['operatingHours.days'] = [...new Set(numericDays)];
       }
 
-      // Clean up time formats
+      // Clean up and convert time formats
       if (vendor.operatingHours) {
         if (vendor.operatingHours.openTime) {
-          updateFields['operatingHours.openTime'] = formatTime(vendor.operatingHours.openTime);
+          updateFields['operatingHours.openTime'] = convertTo24Hour(vendor.operatingHours.openTime);
         }
         if (vendor.operatingHours.closeTime) {
-          updateFields['operatingHours.closeTime'] = formatTime(vendor.operatingHours.closeTime);
+          updateFields['operatingHours.closeTime'] = convertTo24Hour(vendor.operatingHours.closeTime);
         }
       }
       
