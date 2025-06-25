@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "postbuild": "cp .htaccess dist/.htaccess"
   },
   "dependencies": {
     "@fortawesome/free-solid-svg-icons": "^6.7.2",

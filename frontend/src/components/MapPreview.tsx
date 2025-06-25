@@ -1,8 +1,17 @@
+// Add this at the very top for TypeScript module declaration
+// @ts-ignore
+// eslint-disable-next-line
+// If you want, you can move this to a .d.ts file in the future
+// @ts-ignore
+// eslint-disable-next-line
+// TypeScript ignore for OverlappingMarkerSpiderfier import
+
 import React, { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import './MapPreview.css';
 import laari from '../assets/logo_cropped.png';
+import OverlappingMarkerSpiderfier from 'overlapping-marker-spiderfier-leaflet';
 
 interface Vendor {
   _id: string;
@@ -31,6 +40,7 @@ const MapPreview: React.FC<MapPreviewProps> = ({ vendors = [] }) => {
   const [error, setError] = useState<string | null>(null);
   const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null);
   const [isVendorCardVisible, setIsVendorCardVisible] = useState<boolean>(false);
+  const omsRef = useRef<any>(null); // Ref for OverlappingMarkerSpiderfier instance
 
   // Helper function to convert 24-hour time (HH:mm) to minutes from midnight
   const convert24HourToMinutes = (timeStr: string): number => {
@@ -193,6 +203,12 @@ const MapPreview: React.FC<MapPreviewProps> = ({ vendors = [] }) => {
       }
     });
 
+    // Remove previous OMS instance if exists
+    if (omsRef.current) {
+      omsRef.current.clearMarkers();
+      omsRef.current = null;
+    }
+
     // Create custom icon
     const vendorIcon = L.icon({
       iconUrl: laari,
@@ -200,6 +216,14 @@ const MapPreview: React.FC<MapPreviewProps> = ({ vendors = [] }) => {
       iconAnchor: [12, 24],
       popupAnchor: [0, -24],
     });
+
+    // Initialize OverlappingMarkerSpiderfier
+    if (mapRef.current) {
+      omsRef.current = new OverlappingMarkerSpiderfier(mapRef.current, {
+        keepSpiderfied: true,
+        nearbyDistance: 20, // px
+      });
+    }
 
     let markersAdded = 0;
 
@@ -243,7 +267,7 @@ const MapPreview: React.FC<MapPreviewProps> = ({ vendors = [] }) => {
           const marker = L.marker(
             [coords.latitude, coords.longitude],
             { icon: vendorIcon }
-          ).addTo(mapRef.current!);
+          );
 
           // Create popup content with icons and collapsible operating hours
           const popupContent = `
@@ -277,6 +301,12 @@ const MapPreview: React.FC<MapPreviewProps> = ({ vendors = [] }) => {
             maxWidth: 250,
             className: 'custom-popup-container'
           });
+
+          // Add marker to OMS for spiderfying
+          if (omsRef.current) {
+            omsRef.current.addMarker(marker);
+          }
+          marker.addTo(mapRef.current!);
           markersAdded++;
         } else {
           console.warn(`Could not extract coordinates for vendor: ${vendor.name}`);
@@ -285,6 +315,16 @@ const MapPreview: React.FC<MapPreviewProps> = ({ vendors = [] }) => {
         console.warn(`No mapsLink found for vendor: ${vendor.name}`);
       }
     });
+
+    // Optional: Listen for OMS events (e.g., marker spiderfied/unspiderfied)
+    if (omsRef.current) {
+      omsRef.current.addListener('spiderfy', function(markers: any[]) {
+        // Optionally, you can highlight spiderfied markers here
+      });
+      omsRef.current.addListener('unspiderfy', function(markers: any[]) {
+        // Optionally, you can reset marker styles here
+      });
+    }
 
     console.log(`Added ${markersAdded} markers to map preview`);
   };
