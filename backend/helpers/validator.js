@@ -3,6 +3,10 @@ const router = express.Router();
 const { check } = require('express-validator');
 const registerUser = require('../controllers/authController'); // Assuming your controller is in a separate file 
 
+// Import and re-export time utilities to avoid circular dependency
+const { parseTimeToMinutes, isVendorOpenNow } = require('./timeUtils');
+exports.parseTimeToMinutes = parseTimeToMinutes;
+exports.isVendorOpenNow = isVendorOpenNow;
 
 exports.registerValidator = [
     check('name', 'Name is required').not().isEmpty(),

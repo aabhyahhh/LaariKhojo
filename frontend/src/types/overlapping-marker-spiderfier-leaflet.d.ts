@@ -1,1 +1,0 @@
-declare module 'overlapping-marker-spiderfier-leaflet'; 

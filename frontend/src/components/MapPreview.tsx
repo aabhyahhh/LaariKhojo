@@ -11,7 +11,6 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import './MapPreview.css';
 import laari from '../assets/logo_cropped.png';
-import OverlappingMarkerSpiderfier from 'overlapping-marker-spiderfier-leaflet';
 
 interface Vendor {
   _id: string;
@@ -19,6 +18,8 @@ interface Vendor {
   email?: string;
   contactNumber: string;
   mapsLink: string;
+  latitude?: number;
+  longitude?: number;
   operatingHours: {
     openTime: string;
     closeTime: string;
@@ -40,7 +41,6 @@ const MapPreview: React.FC<MapPreviewProps> = ({ vendors = [] }) => {
   const [error, setError] = useState<string | null>(null);
   const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null);
   const [isVendorCardVisible, setIsVendorCardVisible] = useState<boolean>(false);
-  const omsRef = useRef<any>(null); // Ref for OverlappingMarkerSpiderfier instance
 
   // Helper function to convert 24-hour time (HH:mm) to minutes from midnight
   const convert24HourToMinutes = (timeStr: string): number => {
@@ -203,12 +203,6 @@ const MapPreview: React.FC<MapPreviewProps> = ({ vendors = [] }) => {
       }
     });
 
-    // Remove previous OMS instance if exists
-    if (omsRef.current) {
-      omsRef.current.clearMarkers();
-      omsRef.current = null;
-    }
-
     // Create custom icon
     const vendorIcon = L.icon({
       iconUrl: laari,
@@ -217,20 +211,14 @@ const MapPreview: React.FC<MapPreviewProps> = ({ vendors = [] }) => {
       popupAnchor: [0, -24],
     });
 
-    // Initialize OverlappingMarkerSpiderfier
-    if (mapRef.current) {
-      omsRef.current = new OverlappingMarkerSpiderfier(mapRef.current, {
-        keepSpiderfied: true,
-        nearbyDistance: 20, // px
-      });
-    }
-
     let markersAdded = 0;
 
     vendorData.forEach((vendor, index) => {
       console.log(`Processing vendor ${index + 1}:`, vendor);
-      
-      if (vendor.mapsLink) {
+      let coords: { latitude: number; longitude: number } | null = null;
+      if (typeof vendor.latitude === 'number' && typeof vendor.longitude === 'number') {
+        coords = { latitude: vendor.latitude, longitude: vendor.longitude };
+      } else if (vendor.mapsLink) {
         // Extract coordinates from mapsLink
         const extractCoordinates = (mapsLink: string) => {
           try {
@@ -256,18 +244,15 @@ const MapPreview: React.FC<MapPreviewProps> = ({ vendors = [] }) => {
             return null;
           }
         };
-
-        const coords = extractCoordinates(vendor.mapsLink);
-
+        coords = extractCoordinates(vendor.mapsLink);
+      }
         if (coords) {
           console.log(`Adding marker for ${vendor.name} at:`, coords);
-          
           const { status, color } = getOperatingStatus(vendor.operatingHours);
-          
           const marker = L.marker(
             [coords.latitude, coords.longitude],
             { icon: vendorIcon }
-          );
+        );
 
           // Create popup content with icons and collapsible operating hours
           const popupContent = `
@@ -302,29 +287,12 @@ const MapPreview: React.FC<MapPreviewProps> = ({ vendors = [] }) => {
             className: 'custom-popup-container'
           });
 
-          // Add marker to OMS for spiderfying
-          if (omsRef.current) {
-            omsRef.current.addMarker(marker);
-          }
-          marker.addTo(mapRef.current!);
+        marker.addTo(mapRef.current!);
           markersAdded++;
-        } else {
-          console.warn(`Could not extract coordinates for vendor: ${vendor.name}`);
-        }
       } else {
-        console.warn(`No mapsLink found for vendor: ${vendor.name}`);
+        console.warn(`Could not determine coordinates for vendor: ${vendor.name}`);
       }
     });
-
-    // Optional: Listen for OMS events (e.g., marker spiderfied/unspiderfied)
-    if (omsRef.current) {
-      omsRef.current.addListener('spiderfy', function(markers: any[]) {
-        // Optionally, you can highlight spiderfied markers here
-      });
-      omsRef.current.addListener('unspiderfy', function(markers: any[]) {
-        // Optionally, you can reset marker styles here
-      });
-    }
 
     console.log(`Added ${markersAdded} markers to map preview`);
   };
