@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const operatingHoursSchema = require('./operatingHoursModel').schema;
+const { isVendorOpenNow } = require('../helpers/timeUtils');
 
 const userSchema = new mongoose.Schema({
 

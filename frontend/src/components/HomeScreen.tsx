@@ -160,7 +160,7 @@ const HomeScreen: React.FC = () => {
             longitude: position.coords.longitude,
           });
         },
-        (error) => {
+        () => {
           setUserLocation(null);
         },
         { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }

@@ -1,3 +1,11 @@
+// Add this at the very top for TypeScript module declaration
+// @ts-ignore
+// eslint-disable-next-line
+// If you want, you can move this to a .d.ts file in the future
+// @ts-ignore
+// eslint-disable-next-line
+// TypeScript ignore for OverlappingMarkerSpiderfier import
+
 import React, { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -10,6 +18,8 @@ interface Vendor {
   email?: string;
   contactNumber: string;
   mapsLink: string;
+  latitude?: number;
+  longitude?: number;
   operatingHours: {
     openTime: string;
     closeTime: string;
@@ -205,8 +215,10 @@ const MapPreview: React.FC<MapPreviewProps> = ({ vendors = [] }) => {
 
     vendorData.forEach((vendor, index) => {
       console.log(`Processing vendor ${index + 1}:`, vendor);
-      
-      if (vendor.mapsLink) {
+      let coords: { latitude: number; longitude: number } | null = null;
+      if (typeof vendor.latitude === 'number' && typeof vendor.longitude === 'number') {
+        coords = { latitude: vendor.latitude, longitude: vendor.longitude };
+      } else if (vendor.mapsLink) {
         // Extract coordinates from mapsLink
         const extractCoordinates = (mapsLink: string) => {
           try {
@@ -232,18 +244,15 @@ const MapPreview: React.FC<MapPreviewProps> = ({ vendors = [] }) => {
             return null;
           }
         };
-
-        const coords = extractCoordinates(vendor.mapsLink);
-
+        coords = extractCoordinates(vendor.mapsLink);
+      }
         if (coords) {
           console.log(`Adding marker for ${vendor.name} at:`, coords);
-          
           const { status, color } = getOperatingStatus(vendor.operatingHours);
-          
           const marker = L.marker(
             [coords.latitude, coords.longitude],
             { icon: vendorIcon }
-          ).addTo(mapRef.current!);
+        );
 
           // Create popup content with icons and collapsible operating hours
           const popupContent = `
@@ -277,12 +286,11 @@ const MapPreview: React.FC<MapPreviewProps> = ({ vendors = [] }) => {
             maxWidth: 250,
             className: 'custom-popup-container'
           });
+
+        marker.addTo(mapRef.current!);
           markersAdded++;
-        } else {
-          console.warn(`Could not extract coordinates for vendor: ${vendor.name}`);
-        }
       } else {
-        console.warn(`No mapsLink found for vendor: ${vendor.name}`);
+        console.warn(`Could not determine coordinates for vendor: ${vendor.name}`);
       }
     });
 

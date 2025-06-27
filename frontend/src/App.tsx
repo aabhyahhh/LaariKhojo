@@ -11,7 +11,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "./App.css";
 import usePageTracking from './usePageTracking';
-import api, { Vendor } from './api/client';
+import api, { normalizeVendor } from './api/client';
 
 
 import ReactGA from 'react-ga4';
@@ -22,6 +22,23 @@ interface OperatingHours {
   openTime: string; // Format: "HH:mm" in 24-hour format
   closeTime: string; // Format: "HH:mm" in 24-hour format
   days: number[]; // 0-6 representing Sunday-Saturday
+}
+
+interface Vendor {
+  _id: string;
+  name?: string;
+  businessName?: string;
+  vendorName?: string;
+  contactNumber: string;
+  email?: string;
+  mapsLink?: string;
+  operatingHours?: any;
+  updatedAt?: string;
+  foodType?: 'veg' | 'non-veg' | 'swaminarayan' | 'jain' | 'none';
+  profilePicture?: string;
+  bestDishes?: Array<{ name: string; price?: number; menuLink?: string }>;
+  latitude?: number;
+  longitude?: number;
 }
 
 function MapDisplay() {
@@ -236,9 +253,11 @@ function MapDisplay() {
       const result = await api.getAllUsers();
       
       if (result.success && result.data) {
-        setVendors(result.data);
-        console.log("Vendors set successfully:", result.data.length, "vendors");
-        return result.data;
+        // Normalize all vendors to ensure latitude/longitude fields
+        const normalized = result.data.map(normalizeVendor);
+        setVendors(normalized);
+        console.log("Vendors set successfully:", normalized.length, "vendors");
+        return normalized;
       } else {
         console.error("API response indicates failure:", result.error);
         setError(result.error || "Failed to fetch vendors data");
@@ -412,16 +431,16 @@ function MapDisplay() {
         foodType: vendor.foodType
       });
 
-      // Check if mapsLink exists
-      if (!vendor.mapsLink) {
-        console.log(`${vendor.name} has no Google Maps link, skipping`);
-        return;
+      // Prefer latitude/longitude if present
+      let coords = null;
+      if (typeof vendor.latitude === 'number' && typeof vendor.longitude === 'number') {
+        coords = { latitude: vendor.latitude, longitude: vendor.longitude };
+      } else if (vendor.mapsLink) {
+        coords = extractCoordinates(vendor.mapsLink);
       }
-
-      const coords = extractCoordinates(vendor.mapsLink);
       
       if (!coords) {
-        console.log(`Could not extract coordinates for ${vendor.name}`);
+        console.log(`Could not determine coordinates for ${vendor.name}`);
         return;
       }
 

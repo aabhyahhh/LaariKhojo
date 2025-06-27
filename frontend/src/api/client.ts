@@ -107,4 +107,22 @@ export const api = {
   // Add other API methods as needed
 };
 
+// Utility to ensure latitude/longitude fields are present
+export function normalizeVendor(vendor: any): Vendor & { latitude?: number; longitude?: number } {
+  // If latitude/longitude already present, return as is
+  if (typeof vendor.latitude === 'number' && typeof vendor.longitude === 'number') {
+    return vendor;
+  }
+  // If location.coordinates exists, map to lat/lng
+  if (vendor.location && Array.isArray(vendor.location.coordinates) && vendor.location.coordinates.length === 2) {
+    return {
+      ...vendor,
+      latitude: vendor.location.coordinates[1],
+      longitude: vendor.location.coordinates[0],
+    };
+  }
+  // Otherwise, return as is
+  return vendor;
+}
+
 export default api; 
