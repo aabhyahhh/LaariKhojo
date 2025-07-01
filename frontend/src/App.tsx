@@ -56,6 +56,9 @@ function MapDisplay() {
   const [isLocationLoading, setIsLocationLoading] = useState<boolean>(true);
   const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null);
   const [isVendorCardVisible, setIsVendorCardVisible] = useState<boolean>(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [searchResults, setSearchResults] = useState<Vendor[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
   const navigate = useNavigate();
 
@@ -632,8 +635,108 @@ function MapDisplay() {
     }
   };
 
+  // Search bar logic
+  useEffect(() => {
+    if (searchTerm.trim() === '') {
+      setSearchResults([]);
+      setShowSuggestions(false);
+      return;
+    }
+    const results = vendors.filter(vendor =>
+      (vendor.name || '').toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    setSearchResults(results);
+    setShowSuggestions(true);
+  }, [searchTerm, vendors]);
+
+  const handleSearchSelect = (vendor: Vendor) => {
+    setSearchTerm(vendor.name || '');
+    setShowSuggestions(false);
+    // Zoom to vendor and open popup/card
+    let coords = null;
+    if (typeof vendor.latitude === 'number' && typeof vendor.longitude === 'number') {
+      coords = { latitude: vendor.latitude, longitude: vendor.longitude };
+    } else if (vendor.mapsLink) {
+      coords = extractCoordinates(vendor.mapsLink);
+    }
+    if (coords && mapRef.current) {
+      // Use flyTo for smooth transition and center zoom
+      mapRef.current.flyTo([coords.latitude, coords.longitude], 17, {
+        animate: true,
+        duration: 1.5
+      });
+      // Open popup if marker exists
+      const marker = markersRef.current[vendor._id];
+      if (marker) {
+        marker.openPopup();
+      }
+      // Open vendor card as well
+      openVendorCard(vendor);
+    }
+  };
+
   return (
     <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column" }}>
+      {/* Search Bar */}
+      <div style={{
+        position: 'absolute',
+        top: '20px',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        zIndex: 1100,
+        width: '350px',
+        maxWidth: '90vw',
+      }}>
+        <input
+          type="text"
+          placeholder="Search for a vendor..."
+          value={searchTerm}
+          onChange={e => setSearchTerm(e.target.value)}
+          onFocus={() => setShowSuggestions(searchResults.length > 0)}
+          style={{
+            width: '100%',
+            padding: '12px 16px',
+            borderRadius: '24px',
+            border: '1px solid #ccc',
+            fontSize: '16px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.07)',
+            outline: 'none',
+          }}
+        />
+        {showSuggestions && searchResults.length > 0 && (
+          <div style={{
+            position: 'absolute',
+            top: '48px',
+            left: 0,
+            right: 0,
+            background: 'white',
+            border: '1px solid #eee',
+            borderRadius: '0 0 12px 12px',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
+            maxHeight: '220px',
+            overflowY: 'auto',
+            zIndex: 1200,
+          }}>
+            {searchResults.map(vendor => (
+              <div
+                key={vendor._id}
+                onClick={() => handleSearchSelect(vendor)}
+                style={{
+                  padding: '12px 16px',
+                  cursor: 'pointer',
+                  borderBottom: '1px solid #f3f3f3',
+                  fontWeight: 500,
+                  color: '#2c3e50',
+                  background: searchTerm === vendor.name ? '#f5f8ff' : 'white',
+                }}
+                onMouseDown={e => e.preventDefault()}
+              >
+                {vendor.name}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
       {/* Logo in top-left for MapDisplay */}
       <div
         style={{
