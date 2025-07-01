@@ -42,13 +42,26 @@ const MapPreview: React.FC<MapPreviewProps> = ({ vendors = [] }) => {
   const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null);
   const [isVendorCardVisible, setIsVendorCardVisible] = useState<boolean>(false);
 
-  // Helper function to convert 24-hour time (HH:mm) to minutes from midnight
-  const convert24HourToMinutes = (timeStr: string): number => {
-    const time = timeStr.match(/^(\d{1,2}):(\d{2})$/);
-    if (!time) return 0;
-    const hours = parseInt(time[1], 10);
-    const minutes = parseInt(time[2], 10);
-    return hours * 60 + minutes;
+  // Helper function to convert time string to minutes from midnight (supports 24-hour and 12-hour AM/PM)
+  const convertToMinutes = (timeStr: string): number => {
+    // Try 24-hour format first
+    let match = timeStr.match(/^\s*(\d{1,2}):(\d{2})\s*$/);
+    if (match) {
+      const hours = parseInt(match[1], 10);
+      const minutes = parseInt(match[2], 10);
+      return hours * 60 + minutes;
+    }
+    // Try 12-hour format with AM/PM
+    match = timeStr.match(/^\s*(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    if (match) {
+      let hours = parseInt(match[1], 10);
+      const minutes = parseInt(match[2], 10);
+      const period = match[3].toUpperCase();
+      if (period === 'PM' && hours !== 12) hours += 12;
+      if (period === 'AM' && hours === 12) hours = 0;
+      return hours * 60 + minutes;
+    }
+    return 0; // fallback
   };
 
   const getOperatingStatus = (operatingHours?: Vendor['operatingHours']) => {
@@ -59,13 +72,16 @@ const MapPreview: React.FC<MapPreviewProps> = ({ vendors = [] }) => {
     const currentDay = now.getDay();
     const yesterdayDay = (currentDay - 1 + 7) % 7;
     const currentMinutes = now.getHours() * 60 + now.getMinutes();
-    const openTimeInMinutes = convert24HourToMinutes(operatingHours.openTime);
-    const closeTimeInMinutes = convert24HourToMinutes(operatingHours.closeTime);
+    const openTimeInMinutes = convertToMinutes(operatingHours.openTime);
+    const closeTimeInMinutes = convertToMinutes(operatingHours.closeTime);
 
     let isOpen = false;
     if (closeTimeInMinutes < openTimeInMinutes) {
-      if ((currentMinutes >= openTimeInMinutes && operatingHours.days.includes(currentDay)) ||
-          (currentMinutes <= closeTimeInMinutes && operatingHours.days.includes(yesterdayDay))) {
+      // Overnight: openTime (e.g., 16:00) to 23:59 today, and 00:00 to closeTime tomorrow
+      if (
+        (currentMinutes >= openTimeInMinutes && operatingHours.days.includes(currentDay)) ||
+        (currentMinutes <= closeTimeInMinutes && operatingHours.days.includes(yesterdayDay))
+      ) {
         isOpen = true;
       }
     } else {
@@ -76,7 +92,16 @@ const MapPreview: React.FC<MapPreviewProps> = ({ vendors = [] }) => {
 
     if (!isOpen) return { status: 'Closed', color: '#d9534f' };
     
-    const timeUntilClose = (closeTimeInMinutes - currentMinutes + 1440) % 1440;
+    let timeUntilClose;
+    if (closeTimeInMinutes < openTimeInMinutes) {
+      if (currentMinutes >= openTimeInMinutes) {
+        timeUntilClose = (closeTimeInMinutes + 1440) - currentMinutes;
+      } else {
+        timeUntilClose = closeTimeInMinutes - currentMinutes;
+      }
+    } else {
+      timeUntilClose = closeTimeInMinutes - currentMinutes;
+    }
     if (timeUntilClose > 0 && timeUntilClose <= 30) {
       return { status: 'Closes Soon', color: '#f0ad4e' };
     }
