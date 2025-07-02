@@ -769,8 +769,16 @@ function MapDisplay() {
 
   // Add open/close functions
   const openVendorCard = (vendor: Vendor) => {
-    setSelectedVendor(vendor);
-    setIsVendorCardVisible(true);
+    if (selectedVendor && selectedVendor._id !== vendor._id) {
+      setIsVendorCardVisible(false);
+      setTimeout(() => {
+        setSelectedVendor(vendor);
+        setIsVendorCardVisible(true);
+      }, 800); // match the sidebar transition duration
+    } else {
+      setSelectedVendor(vendor);
+      setIsVendorCardVisible(true);
+    }
   };
   const closeVendorCard = () => {
     setSelectedVendor(null);
@@ -827,65 +835,97 @@ function MapDisplay() {
 
   return (
     <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column" }}>
-      {/* Search Bar */}
-      <div style={{
-        position: 'absolute',
-        top: '20px',
-        left: '50%',
-        transform: 'translateX(-50%)',
-        zIndex: 1100,
-        width: '350px',
-        maxWidth: '90vw',
-      }}>
-        <input
-          type="text"
-          placeholder="Search for a vendor..."
-          value={searchTerm}
-          onChange={e => setSearchTerm(e.target.value)}
-          onFocus={() => setShowSuggestions(searchResults.length > 0)}
+      {/* Top bar: Logo and Search Bar in a flex container for alignment */}
+      <div
+        style={{
+          position: 'absolute',
+          top: '20px',
+          left: '20px',
+          zIndex: 1200,
+          width: 'calc(100vw - 40px)',
+          maxWidth: '700px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '16px',
+          pointerEvents: 'none', // allow map interaction except for children
+        }}
+      >
+        {/* Logo */}
+        <div
           style={{
-            width: '100%',
-            padding: '12px 16px',
-            borderRadius: '24px',
-            border: '1px solid #ccc',
-            fontSize: '16px',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.07)',
-            outline: 'none',
+            cursor: 'pointer',
+            pointerEvents: 'auto',
+            display: 'flex',
+            alignItems: 'center',
+            height: '60px',
           }}
-        />
-        {showSuggestions && searchResults.length > 0 && (
-          <div style={{
-            position: 'absolute',
-            top: '48px',
-            left: 0,
-            right: 0,
-            background: 'white',
-            border: '1px solid #eee',
-            borderRadius: '0 0 12px 12px',
-            boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
-            maxHeight: '220px',
-            overflowY: 'auto',
-            zIndex: 1200,
-          }}>
-            {searchResults.map(vendor => (
-              <div
-                key={vendor._id}
-                onClick={() => handleSearchSelect(vendor)}
-                style={{
-                  padding: '12px 16px',
-                  cursor: 'pointer',
-                  borderBottom: '1px solid #f3f3f3',
-                  fontWeight: 500,
-                  color: '#2c3e50',
-                  background: searchTerm === vendor.name ? '#f5f8ff' : 'white',
-                }}
-                onMouseDown={e => e.preventDefault()}
-              >
-                {vendor.name}
+          onClick={() => navigate('/')}
+        >
+          <img src={logo} alt="Laari Logo" style={{ height: '60px', width: 'auto' }} />
+        </div>
+        {/* Search Bar */}
+        <div
+          style={{
+            flex: 1,
+            minWidth: 0,
+            display: 'flex',
+            alignItems: 'center',
+            pointerEvents: 'auto',
+          }}
+        >
+          <div style={{ position: 'relative', width: '100%', maxWidth: '400px' }}>
+            <input
+              type="text"
+              placeholder="Search for a vendor..."
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              onFocus={() => setShowSuggestions(searchResults.length > 0)}
+              style={{
+                width: '100%',
+                padding: '12px 16px',
+                borderRadius: '24px',
+                border: '1px solid #ccc',
+                fontSize: '16px',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.07)',
+                outline: 'none',
+                background: 'white',
+              }}
+            />
+            {showSuggestions && searchResults.length > 0 && (
+              <div style={{
+                position: 'absolute',
+                top: '48px',
+                left: 0,
+                width: '100%',
+                background: 'white',
+                border: '1px solid #eee',
+                borderRadius: '0 0 12px 12px',
+                boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
+                maxHeight: '220px',
+                overflowY: 'auto',
+                zIndex: 1300,
+              }}>
+                {searchResults.map(vendor => (
+                  <div
+                    key={vendor._id}
+                    onClick={() => handleSearchSelect(vendor)}
+                    style={{
+                      padding: '12px 16px',
+                      cursor: 'pointer',
+                      borderBottom: '1px solid #f3f3f3',
+                      fontWeight: 500,
+                      color: '#2c3e50',
+                      background: searchTerm === vendor.name ? '#f5f8ff' : 'white',
+                    }}
+                    onMouseDown={e => e.preventDefault()}
+                  >
+                    {vendor.name}
+                  </div>
+                ))}
               </div>
-            ))}
+            )}
           </div>
-        )}
+        </div>
       </div>
       {/* Error message covers search bar and can be dismissed */}
       {error && showError && (
@@ -935,20 +975,6 @@ function MapDisplay() {
           </button>
         </div>
       )}
-      {/* Logo in top-left for MapDisplay */}
-      <div
-        style={{
-          position: 'absolute',
-          top: '20px',
-          left: '20px',
-          zIndex: 1000,
-          cursor: 'pointer',
-        }}
-        onClick={() => navigate('/')}
-      >
-        <img src={logo} alt="Laari Logo" style={{ height: '100px' }} />
-      </div>
-
       {/* Map Content */}
       <div id="map" style={{ width: "100%", height: "100%", flexGrow: 1 }}></div>
       <button
@@ -1036,7 +1062,7 @@ function MapDisplay() {
             boxShadow: '2px 0 15px rgba(0,0,0,0.15)',
             overflow: 'auto',
             transform: isVendorCardVisible ? 'translateX(0)' : 'translateX(-100%)',
-            transition: 'transform 0.3s ease-in-out'
+            transition: 'transform 0.8s cubic-bezier(0.4, 0.0, 0.2, 1)'
           }}
         >
           <button
