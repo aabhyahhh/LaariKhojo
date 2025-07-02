@@ -59,6 +59,7 @@ function MapDisplay() {
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState<Vendor[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [showError, setShowError] = useState(true);
 
   const navigate = useNavigate();
 
@@ -433,7 +434,98 @@ function MapDisplay() {
     );
   };
 
-  // Updated updateMapMarkers function
+  // Add this function to handle grouped vendors at the same location
+  const createGroupedPopupContent = (vendorsAtLocation: Vendor[]) => {
+    const count = vendorsAtLocation.length;
+    
+    return `
+      <div class="grouped-popup" style="font-size: 12px; line-height: 1.4; min-width: 280px; max-width: 320px;">
+        <!-- Header -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #eee;">
+          <h3 style="margin: 0; font-size: 14px; font-weight: 600; color: #2c3e50;">${count} Vendors at this location</h3>
+          <button onclick="event.stopPropagation(); this.closest('.leaflet-popup').style.display='none'" style="background: none; border: none; font-size: 16px; color: #999; cursor: pointer; padding: 2px;">×</button>
+        </div>
+        
+        <!-- Vendor List -->
+        <div style="max-height: 280px; overflow-y: auto;">
+          ${vendorsAtLocation.map((vendor, index) => {
+            const { status, color } = getOperatingStatus(vendor.operatingHours);
+            return `
+              <div class="vendor-item" style="
+                display: flex; 
+                align-items: center; 
+                padding: 8px 6px; 
+                margin-bottom: ${index < vendorsAtLocation.length - 1 ? '4px' : '0'}; 
+                cursor: pointer; 
+                border-radius: 6px;
+                transition: background-color 0.2s;
+              " 
+              onclick="window.openVendorCard('${vendor._id}')"
+              onmouseover="this.style.backgroundColor='#f8f9fa'"
+              onmouseout="this.style.backgroundColor='transparent'">
+                
+                <!-- Vendor Avatar -->
+                <div style="margin-right: 12px; flex-shrink: 0;">
+                  ${vendor.profilePicture ? `
+                    <img src="${vendor.profilePicture}" alt="${vendor.name}" style="
+                      width: 32px; 
+                      height: 32px; 
+                      border-radius: 50%; 
+                      object-fit: cover; 
+                      border: 2px solid #ddd;
+                    " />
+                  ` : `
+                    <div style="
+                      width: 32px; 
+                      height: 32px; 
+                      border-radius: 50%; 
+                      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                      display: flex; 
+                      align-items: center; 
+                      justify-content: center; 
+                      color: white; 
+                      font-weight: bold; 
+                      font-size: 14px;
+                    ">
+                      ${(vendor.name?.charAt(0) || '?').toUpperCase()}
+                    </div>
+                  `}
+                </div>
+                
+                <!-- Vendor Info -->
+                <div style="flex: 1; min-width: 0;">
+                  <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2px;">
+                    <h4 style="margin: 0; font-size: 13px; font-weight: 600; color: #2c3e50; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 160px;">
+                      ${vendor.name || 'Unnamed Vendor'}
+                    </h4>
+                    <span style="font-size: 16px; margin-left: 8px; flex-shrink: 0;">→</span>
+                  </div>
+                  
+                  <div style="font-size: 11px; color: #666; margin-bottom: 3px;">
+                    ${vendor.foodType || 'Food type not specified'}
+                  </div>
+                  
+                  ${vendor.operatingHours ? `
+                    <div style="display: flex; align-items: center;">
+                      <span style="color: ${color}; margin-right: 4px; font-size: 8px;">●</span>
+                      <span style="color: ${color}; font-size: 11px; font-weight: 500;">${status}</span>
+                    </div>
+                  ` : ''}
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+        
+        <!-- Footer -->
+        <div style="text-align: center; margin-top: 12px; padding-top: 8px; border-top: 1px solid #eee;">
+          <span style="color: #666; font-size: 11px; font-style: italic;">Click any vendor to view full details</span>
+        </div>
+      </div>
+    `;
+  };
+
+  // Updated updateMapMarkers function to group vendors by location
   const updateMapMarkers = (vendors: Vendor[]) => {
     if (!mapRef.current || !isMapInitialized) {
       console.log("Map not initialized, skipping marker update");
@@ -446,18 +538,14 @@ function MapDisplay() {
     Object.values(markersRef.current).forEach((marker) => marker.remove());
     markersRef.current = {};
 
-    // Track vendor markers for fitting bounds
-    const validMarkers: L.Marker[] = [];
+    // Group vendors by location (within ~50 meters)
+    const locationGroups: { [key: string]: Vendor[] } = {};
+    const processedVendors = new Set<string>();
 
-    vendors.forEach((vendor, index) => {
-      console.log(`Processing vendor ${index + 1}:`, {
-        name: vendor.name,
-        mapsLink: vendor.mapsLink || "No maps link",
-        hasOperatingHours: !!vendor.operatingHours,
-        foodType: vendor.foodType
-      });
+    vendors.forEach((vendor) => {
+      if (processedVendors.has(vendor._id)) return;
 
-      // Prefer latitude/longitude if present
+      // Get coordinates for this vendor
       let coords = null;
       if (typeof vendor.latitude === 'number' && typeof vendor.longitude === 'number') {
         coords = { latitude: vendor.latitude, longitude: vendor.longitude };
@@ -470,66 +558,128 @@ function MapDisplay() {
         return;
       }
 
-      const { status, color } = getOperatingStatus(vendor.operatingHours);
+      // Create a location key (rounded to ~50m precision)
+      const locationKey = `${Math.round(coords.latitude * 1000)}_${Math.round(coords.longitude * 1000)}`;
+      
+      if (!locationGroups[locationKey]) {
+        locationGroups[locationKey] = [];
+      }
+      
+      locationGroups[locationKey].push(vendor);
+      processedVendors.add(vendor._id);
+    });
 
-      // Add this line for debugging
-      console.log('Vendor Operating Hours for Popup:', vendor.name, vendor.operatingHours);
+    // Create markers for each location group
+    Object.entries(locationGroups).forEach(([locationKey, vendorsAtLocation]) => {
+      if (vendorsAtLocation.length === 0) return;
 
-      // Create popup content with icons and collapsible operating hours
-      const popupContent = `
-        <div class="custom-popup" style="font-size: 12px; line-height: 1.4; min-width: 200px; cursor: pointer;" onclick="window.openVendorCard('${vendor._id}')">
-          <div style="display: flex; align-items: flex-start; margin-bottom: 8px;">
-            ${vendor.profilePicture ? `
-              <img src="${vendor.profilePicture}" alt="${vendor.name}" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; margin-right: 12px; border: 2px solid #ddd;" />
-            ` : `
-              <div style="width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); margin-right: 12px; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 16px;">
-                ${(vendor.name?.charAt(0) || '?').toUpperCase()}
-              </div>
-            `}
-            <div style="flex: 1;">
-              <h3 style="margin: 0 0 4px 0; font-size: 14px; font-weight: 600; color: #2c3e50;">${vendor.name}</h3>
-              ${vendor.foodType ? `<div style="color: #666; font-size: 11px; margin-bottom: 4px;">${vendor.foodType}</div>` : ''}
-              ${vendor.operatingHours ? `
-                <div style="display: flex; align-items: center;">
-                  <span style="color: ${color}; margin-right: 4px; font-size: 10px;">●</span>
-                  <span style="color: ${color}; font-size: 11px;">${status}</span>
-                </div>
-              ` : ''}
-            </div>
-          </div>
-          <div style="text-align: center; color: #007bff; font-size: 11px; font-weight: 500; margin-top: 8px; padding-top: 8px; border-top: 1px solid #eee;">
-            Click to view full details →
-          </div>
-        </div>
-      `;
+      // Use the first vendor's coordinates as the group location
+      const firstVendor = vendorsAtLocation[0];
+      let coords = null;
+      
+      if (typeof firstVendor.latitude === 'number' && typeof firstVendor.longitude === 'number') {
+        coords = { latitude: firstVendor.latitude, longitude: firstVendor.longitude };
+      } else if (firstVendor.mapsLink) {
+        coords = extractCoordinates(firstVendor.mapsLink);
+      }
+      
+      if (!coords) return;
 
       try {
-        // Create vendor icon with size based on current zoom level
-        const customIcon = createVendorIcon();
+        let popupContent: string;
+        let customIcon: L.Icon | L.DivIcon;
+
+        if (vendorsAtLocation.length === 1) {
+          // Single vendor - use existing popup design
+          const vendor = vendorsAtLocation[0];
+          const { status, color } = getOperatingStatus(vendor.operatingHours);
+          
+          popupContent = `
+            <div class="custom-popup" style="font-size: 12px; line-height: 1.4; min-width: 200px; cursor: pointer;" onclick="window.openVendorCard('${vendor._id}')">
+              <div style="display: flex; align-items: flex-start; margin-bottom: 8px;">
+                ${vendor.profilePicture ? `
+                  <img src="${vendor.profilePicture}" alt="${vendor.name}" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; margin-right: 12px; border: 2px solid #ddd;" />
+                ` : `
+                  <div style="width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); margin-right: 12px; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 16px;">
+                    ${(vendor.name?.charAt(0) || '?').toUpperCase()}
+                  </div>
+                `}
+                <div style="flex: 1;">
+                  <h3 style="margin: 0 0 4px 0; font-size: 14px; font-weight: 600; color: #2c3e50;">${vendor.name}</h3>
+                  ${vendor.foodType ? `<div style="color: #666; font-size: 11px; margin-bottom: 4px;">${vendor.foodType}</div>` : ''}
+                  ${vendor.operatingHours ? `
+                    <div style="display: flex; align-items: center;">
+                      <span style="color: ${color}; margin-right: 4px; font-size: 10px;">●</span>
+                      <span style="color: ${color}; font-size: 11px;">${status}</span>
+                    </div>
+                  ` : ''}
+                </div>
+              </div>
+              <div style="text-align: center; color: #007bff; font-size: 11px; font-weight: 500; margin-top: 8px; padding-top: 8px; border-top: 1px solid #eee;">
+                Click to view full details →
+              </div>
+            </div>
+          `;
+          
+          customIcon = createVendorIcon();
+        } else {
+          // Multiple vendors - use grouped popup
+          popupContent = createGroupedPopupContent(vendorsAtLocation);
+          
+          // Create clustered icon with count
+          customIcon = L.divIcon({
+            className: 'vendor-cluster',
+            html: `
+              <div style="
+                background: #C80B41;
+                color: white;
+                border-radius: 50%;
+                width: 32px;
+                height: 32px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-weight: bold;
+                font-size: 12px;
+                border: 3px solid white;
+                box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+              ">
+                ${vendorsAtLocation.length}
+              </div>
+            `,
+            iconSize: [32, 32],
+            iconAnchor: [16, 32],
+            popupAnchor: [0, -32],
+          });
+        }
 
         const marker = L.marker([coords.latitude, coords.longitude], {
           icon: customIcon,
         })
           .addTo(mapRef.current!)
           .bindPopup(popupContent, {
-            maxWidth: 250,
-            className: 'custom-popup-container'
+            maxWidth: vendorsAtLocation.length > 1 ? 320 : 250,
+            className: vendorsAtLocation.length > 1 ? 'grouped-popup-container' : 'custom-popup-container'
           });
 
-        markersRef.current[vendor._id] = marker;
-        validMarkers.push(marker);
-        console.log(`Successfully added marker for ${vendor.name}`);
+        // Store marker with a combined key for grouped locations
+        const markerKey = vendorsAtLocation.length === 1 
+          ? vendorsAtLocation[0]._id 
+          : `group_${locationKey}`;
+        markersRef.current[markerKey] = marker;
+        
+        console.log(`Successfully added marker for ${vendorsAtLocation.length} vendor(s) at location`);
       } catch (markerError) {
-        console.error(`Error creating marker for ${vendor.name}:`, markerError);
+        console.error(`Error creating marker for location group:`, markerError);
       }
     });
 
-    console.log(`Added ${validMarkers.length} markers to map`);
+    console.log(`Added ${Object.keys(markersRef.current).length} markers to map`);
 
-    // Fit map bounds to include all markers if we don't have user location
-    if (validMarkers.length > 0 && !userLocation) {
+    // Fit map bounds if no user location
+    if (Object.keys(markersRef.current).length > 0 && !userLocation) {
       try {
-        const group = L.featureGroup(validMarkers);
+        const group = L.featureGroup(Object.values(markersRef.current));
         mapRef.current.fitBounds(group.getBounds().pad(0.1));
         console.log("Fitted map bounds to include all markers");
       } catch (boundsError) {
@@ -737,6 +887,54 @@ function MapDisplay() {
           </div>
         )}
       </div>
+      {/* Error message covers search bar and can be dismissed */}
+      {error && showError && (
+        <div
+          className="error-message"
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            width: "100vw",
+            backgroundColor: "#ff4d4d",
+            color: "white",
+            padding: "14px 60px 14px 24px",
+            borderRadius: 0,
+            zIndex: 1201,
+            maxWidth: "100vw",
+            textAlign: "left",
+            fontSize: "20px",
+            fontWeight: 500,
+            display: 'flex',
+            alignItems: 'center',
+            boxSizing: 'border-box',
+          }}
+        >
+          <span style={{ flex: 1 }}>{error}</span>
+          <button
+            onClick={() => setShowError(false)}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'white',
+              fontSize: '28px',
+              fontWeight: 700,
+              cursor: 'pointer',
+              marginLeft: '16px',
+              lineHeight: 1,
+              padding: 0,
+              opacity: 0.85,
+              transition: 'opacity 0.2s',
+            }}
+            aria-label="Close error message"
+            title="Close"
+            onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
+            onMouseLeave={e => (e.currentTarget.style.opacity = '0.85')}
+          >
+            ×
+          </button>
+        </div>
+      )}
       {/* Logo in top-left for MapDisplay */}
       <div
         style={{
@@ -753,26 +951,6 @@ function MapDisplay() {
 
       {/* Map Content */}
       <div id="map" style={{ width: "100%", height: "100%", flexGrow: 1 }}></div>
-      {error && (
-        <div
-          className="error-message"
-          style={{
-            position: "absolute",
-            top: "10px",
-            left: "50%",
-            transform: "translateX(-50%)",
-            backgroundColor: "rgba(255, 0, 0, 0.7)",
-            color: "white",
-            padding: "10px",
-            borderRadius: "5px",
-            zIndex: 1000,
-            maxWidth: "90%",
-            textAlign: "center",
-          }}
-        >
-          {error}
-        </div>
-      )}
       <button
         onClick={refreshUserLocation}
         style={{
