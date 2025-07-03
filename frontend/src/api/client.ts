@@ -22,6 +22,16 @@ export interface ApiResponse<T> {
   error: string | null;
 }
 
+export interface Review {
+  _id?: string;
+  vendorId: string;
+  name: string;
+  email: string;
+  rating: number;
+  comment?: string;
+  createdAt?: string;
+}
+
 // Create axios instance with default config
 const createAxiosInstance = (): AxiosInstance => {
   const instance = axios.create({
@@ -104,6 +114,8 @@ export const api = {
     handleApiResponse<{ accessToken: string }>(apiClient.post('/api/login', credentials)),
   register: (userData: Omit<Vendor, '_id'>) => 
     handleApiResponse<Vendor>(apiClient.post('/api/register', userData)),
+  getReviews: (vendorId: string) => handleApiResponse<Review[]>(apiClient.get(`/api/reviews?vendorId=${vendorId}`)),
+  addReview: (review: Omit<Review, '_id' | 'createdAt'>) => handleApiResponse<Review>(apiClient.post('/api/reviews', review)),
   // Add other API methods as needed
 };
 

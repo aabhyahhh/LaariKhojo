@@ -71,3 +71,9 @@
 .custom-popup .leaflet-popup-close-button:hover {
   opacity: 1;
 }
+
+@media (max-width: 600px) {
+  .refresh-btn-desktop {
+    display: none !important;
+  }
+}

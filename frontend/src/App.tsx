@@ -11,7 +11,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "./App.css";
 import usePageTracking from './usePageTracking';
-import api, { normalizeVendor } from './api/client';
+import api, { normalizeVendor, Review } from './api/client';
 
 
 import ReactGA from 'react-ga4';
@@ -56,16 +56,38 @@ function MapDisplay() {
   const [isLocationLoading, setIsLocationLoading] = useState<boolean>(true);
   const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null);
   const [isVendorCardVisible, setIsVendorCardVisible] = useState<boolean>(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [searchResults, setSearchResults] = useState<Vendor[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [showError, setShowError] = useState(true);
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [showAllReviews, setShowAllReviews] = useState(false);
+  const [reviewForm, setReviewForm] = useState({ name: '', email: '', rating: 0, comment: '' });
+  const [submitting, setSubmitting] = useState(false);
+  const [reviewError, setReviewError] = useState<string | null>(null);
 
   const navigate = useNavigate();
 
-  // Helper function to convert 24-hour time (HH:mm) to minutes from midnight
-  const convert24HourToMinutes = (timeStr: string): number => {
-    const time = timeStr.match(/^(\d{1,2}):(\d{2})$/);
-    if (!time) return 0;
-    const hours = parseInt(time[1], 10);
-    const minutes = parseInt(time[2], 10);
-    return hours * 60 + minutes;
+  // Helper function to convert time string to minutes from midnight (supports 24-hour and 12-hour AM/PM)
+  const convertToMinutes = (timeStr: string): number => {
+    // Try 24-hour format first
+    let match = timeStr.match(/^\s*(\d{1,2}):(\d{2})\s*$/);
+    if (match) {
+      const hours = parseInt(match[1], 10);
+      const minutes = parseInt(match[2], 10);
+      return hours * 60 + minutes;
+    }
+    // Try 12-hour format with AM/PM
+    match = timeStr.match(/^\s*(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    if (match) {
+      let hours = parseInt(match[1], 10);
+      const minutes = parseInt(match[2], 10);
+      const period = match[3].toUpperCase();
+      if (period === 'PM' && hours !== 12) hours += 12;
+      if (period === 'AM' && hours === 12) hours = 0;
+      return hours * 60 + minutes;
+    }
+    return 0; // fallback
   };
 
   const getOperatingStatus = (operatingHours?: OperatingHours) => {
@@ -78,18 +100,17 @@ function MapDisplay() {
     const yesterdayDay = (currentDay - 1 + 7) % 7; // The day before today
     const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
-    const openTimeInMinutes = convert24HourToMinutes(operatingHours.openTime);
-    const closeTimeInMinutes = convert24HourToMinutes(operatingHours.closeTime);
+    const openTimeInMinutes = convertToMinutes(operatingHours.openTime);
+    const closeTimeInMinutes = convertToMinutes(operatingHours.closeTime);
 
     let isOpen = false;
     // Case 1: Overnight schedule (e.g., 22:00 - 02:00)
     if (closeTimeInMinutes < openTimeInMinutes) {
-      const isPostMidnight = currentMinutes >= openTimeInMinutes;
-      const isPreMidnight = currentMinutes <= closeTimeInMinutes;
-
-      if (isPostMidnight && operatingHours.days.includes(currentDay)) {
-        isOpen = true;
-      } else if (isPreMidnight && operatingHours.days.includes(yesterdayDay)) {
+      // Overnight: openTime (e.g., 19:00) to 23:59 today, and 00:00 to closeTime tomorrow
+      if (
+        (currentMinutes >= openTimeInMinutes && operatingHours.days.includes(currentDay)) ||
+        (currentMinutes <= closeTimeInMinutes && operatingHours.days.includes(yesterdayDay))
+      ) {
         isOpen = true;
       }
     }
@@ -106,8 +127,19 @@ function MapDisplay() {
 
     // If open, check if it's closing soon
     const closesSoonThreshold = 30; // minutes
-    let timeUntilClose = (closeTimeInMinutes - currentMinutes + 1440) % 1440;
-    
+    let timeUntilClose;
+    if (closeTimeInMinutes < openTimeInMinutes) {
+      // Overnight: calculate time until close correctly
+      if (currentMinutes >= openTimeInMinutes) {
+        // Before midnight
+        timeUntilClose = (closeTimeInMinutes + 1440) - currentMinutes;
+      } else {
+        // After midnight
+        timeUntilClose = closeTimeInMinutes - currentMinutes;
+      }
+    } else {
+      timeUntilClose = closeTimeInMinutes - currentMinutes;
+    }
     if (timeUntilClose > 0 && timeUntilClose <= closesSoonThreshold) {
       return { status: 'Closes Soon', color: '#f0ad4e' };
     }
@@ -317,8 +349,8 @@ function MapDisplay() {
         }
       ).addTo(mapRef.current);
 
-      // Add custom zoom control to bottom right
-      L.control.zoom({ position: 'bottomright' }).addTo(mapRef.current);
+      // Add custom zoom control to bottom left
+      L.control.zoom({ position: 'bottomleft' }).addTo(mapRef.current);
 
       // Handle zoom events to update icon sizes
       mapRef.current.on("zoomend", () => {
@@ -407,7 +439,98 @@ function MapDisplay() {
     );
   };
 
-  // Updated updateMapMarkers function
+  // Add this function to handle grouped vendors at the same location
+  const createGroupedPopupContent = (vendorsAtLocation: Vendor[]) => {
+    const count = vendorsAtLocation.length;
+    
+    return `
+      <div class="grouped-popup" style="font-size: 12px; line-height: 1.4; min-width: 280px; max-width: 320px;">
+        <!-- Header -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #eee;">
+          <h3 style="margin: 0; font-size: 14px; font-weight: 600; color: #2c3e50;">${count} Vendors at this location</h3>
+          <button onclick="event.stopPropagation(); this.closest('.leaflet-popup').style.display='none'" style="background: none; border: none; font-size: 16px; color: #999; cursor: pointer; padding: 2px;">×</button>
+        </div>
+        
+        <!-- Vendor List -->
+        <div style="max-height: 280px; overflow-y: auto;">
+          ${vendorsAtLocation.map((vendor, index) => {
+            const { status, color } = getOperatingStatus(vendor.operatingHours);
+            return `
+              <div class="vendor-item" style="
+                display: flex; 
+                align-items: center; 
+                padding: 8px 6px; 
+                margin-bottom: ${index < vendorsAtLocation.length - 1 ? '4px' : '0'}; 
+                cursor: pointer; 
+                border-radius: 6px;
+                transition: background-color 0.2s;
+              " 
+              onclick="window.openVendorCard('${vendor._id}')"
+              onmouseover="this.style.backgroundColor='#f8f9fa'"
+              onmouseout="this.style.backgroundColor='transparent'">
+                
+                <!-- Vendor Avatar -->
+                <div style="margin-right: 12px; flex-shrink: 0;">
+                  ${vendor.profilePicture ? `
+                    <img src="${vendor.profilePicture}" alt="${vendor.name}" style="
+                      width: 32px; 
+                      height: 32px; 
+                      border-radius: 50%; 
+                      object-fit: cover; 
+                      border: 2px solid #ddd;
+                    " />
+                  ` : `
+                    <div style="
+                      width: 32px; 
+                      height: 32px; 
+                      border-radius: 50%; 
+                      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                      display: flex; 
+                      align-items: center; 
+                      justify-content: center; 
+                      color: white; 
+                      font-weight: bold; 
+                      font-size: 14px;
+                    ">
+                      ${(vendor.name?.charAt(0) || '?').toUpperCase()}
+                    </div>
+                  `}
+                </div>
+                
+                <!-- Vendor Info -->
+                <div style="flex: 1; min-width: 0;">
+                  <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2px;">
+                    <h4 style="margin: 0; font-size: 13px; font-weight: 600; color: #2c3e50; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 160px;">
+                      ${vendor.name || 'Unnamed Vendor'}
+                    </h4>
+                    <span style="font-size: 16px; margin-left: 8px; flex-shrink: 0;">→</span>
+                  </div>
+                  
+                  <div style="font-size: 11px; color: #666; margin-bottom: 3px;">
+                    ${vendor.foodType || 'Food type not specified'}
+                  </div>
+                  
+                  ${vendor.operatingHours ? `
+                    <div style="display: flex; align-items: center;">
+                      <span style="color: ${color}; margin-right: 4px; font-size: 8px;">●</span>
+                      <span style="color: ${color}; font-size: 11px; font-weight: 500;">${status}</span>
+                    </div>
+                  ` : ''}
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+        
+        <!-- Footer -->
+        <div style="text-align: center; margin-top: 12px; padding-top: 8px; border-top: 1px solid #eee;">
+          <span style="color: #666; font-size: 11px; font-style: italic;">Click any vendor to view full details</span>
+        </div>
+      </div>
+    `;
+  };
+
+  // Updated updateMapMarkers function to group vendors by location
   const updateMapMarkers = (vendors: Vendor[]) => {
     if (!mapRef.current || !isMapInitialized) {
       console.log("Map not initialized, skipping marker update");
@@ -420,90 +543,137 @@ function MapDisplay() {
     Object.values(markersRef.current).forEach((marker) => marker.remove());
     markersRef.current = {};
 
-    // Track vendor markers for fitting bounds
-    const validMarkers: L.Marker[] = [];
+    // Group vendors by location (within ~50 meters)
+    const locationGroups: { [key: string]: Vendor[] } = {};
+    const processedVendors = new Set<string>();
 
-    vendors.forEach((vendor, index) => {
-      console.log(`Processing vendor ${index + 1}:`, {
-        name: vendor.name,
-        mapsLink: vendor.mapsLink || "No maps link",
-        hasOperatingHours: !!vendor.operatingHours,
-        foodType: vendor.foodType
-      });
+    vendors.forEach((vendor) => {
+      if (processedVendors.has(vendor._id)) return;
 
-      // Prefer latitude/longitude if present
-      let coords = null;
-      if (typeof vendor.latitude === 'number' && typeof vendor.longitude === 'number') {
-        coords = { latitude: vendor.latitude, longitude: vendor.longitude };
-      } else if (vendor.mapsLink) {
-        coords = extractCoordinates(vendor.mapsLink);
-      }
+      // Get coordinates for this vendor
+      let coords = getVendorCoordinates(vendor);
       
       if (!coords) {
         console.log(`Could not determine coordinates for ${vendor.name}`);
         return;
       }
 
-      const { status, color } = getOperatingStatus(vendor.operatingHours);
+      // Create a location key (rounded to ~50m precision)
+      const locationKey = `${Math.round(coords.latitude * 1000)}_${Math.round(coords.longitude * 1000)}`;
+      
+      if (!locationGroups[locationKey]) {
+        locationGroups[locationKey] = [];
+      }
+      
+      locationGroups[locationKey].push(vendor);
+      processedVendors.add(vendor._id);
+    });
 
-      // Add this line for debugging
-      console.log('Vendor Operating Hours for Popup:', vendor.name, vendor.operatingHours);
+    // Create markers for each location group
+    Object.entries(locationGroups).forEach(([locationKey, vendorsAtLocation]) => {
+      if (vendorsAtLocation.length === 0) return;
 
-      // Create popup content with icons and collapsible operating hours
-      const popupContent = `
-        <div class="custom-popup" style="font-size: 12px; line-height: 1.4; min-width: 200px; cursor: pointer;" onclick="window.openVendorCard('${vendor._id}')">
-          <div style="display: flex; align-items: flex-start; margin-bottom: 8px;">
-            ${vendor.profilePicture ? `
-              <img src="${vendor.profilePicture}" alt="${vendor.name}" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; margin-right: 12px; border: 2px solid #ddd;" />
-            ` : `
-              <div style="width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); margin-right: 12px; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 16px;">
-                ${(vendor.name?.charAt(0) || '?').toUpperCase()}
-              </div>
-            `}
-            <div style="flex: 1;">
-              <h3 style="margin: 0 0 4px 0; font-size: 14px; font-weight: 600; color: #2c3e50;">${vendor.name}</h3>
-              ${vendor.foodType ? `<div style="color: #666; font-size: 11px; margin-bottom: 4px;">${vendor.foodType}</div>` : ''}
-              ${vendor.operatingHours ? `
-                <div style="display: flex; align-items: center;">
-                  <span style="color: ${color}; margin-right: 4px; font-size: 10px;">●</span>
-                  <span style="color: ${color}; font-size: 11px;">${status}</span>
-                </div>
-              ` : ''}
-            </div>
-          </div>
-          <div style="text-align: center; color: #007bff; font-size: 11px; font-weight: 500; margin-top: 8px; padding-top: 8px; border-top: 1px solid #eee;">
-            Click to view full details →
-          </div>
-        </div>
-      `;
+      // Use the first vendor's coordinates as the group location
+      const firstVendor = vendorsAtLocation[0];
+      let coords = getVendorCoordinates(firstVendor);
+      
+      if (!coords) return;
 
       try {
-        // Create vendor icon with size based on current zoom level
-        const customIcon = createVendorIcon();
+        let popupContent: string;
+        let customIcon: L.Icon | L.DivIcon;
+
+        if (vendorsAtLocation.length === 1) {
+          // Single vendor - use existing popup design
+          const vendor = vendorsAtLocation[0];
+          const { status, color } = getOperatingStatus(vendor.operatingHours);
+          
+          popupContent = `
+            <div class="custom-popup" style="font-size: 12px; line-height: 1.4; min-width: 200px; cursor: pointer;" onclick="window.openVendorCard('${vendor._id}')">
+              <div style="display: flex; align-items: flex-start; margin-bottom: 8px;">
+                ${vendor.profilePicture ? `
+                  <img src="${vendor.profilePicture}" alt="${vendor.name}" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; margin-right: 12px; border: 2px solid #ddd;" />
+                ` : `
+                  <div style="width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); margin-right: 12px; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 16px;">
+                    ${(vendor.name?.charAt(0) || '?').toUpperCase()}
+                  </div>
+                `}
+                <div style="flex: 1;">
+                  <h3 style="margin: 0 0 4px 0; font-size: 14px; font-weight: 600; color: #2c3e50;">${vendor.name}</h3>
+                  ${vendor.foodType ? `<div style="color: #666; font-size: 11px; margin-bottom: 4px;">${vendor.foodType}</div>` : ''}
+                  ${vendor.operatingHours ? `
+                    <div style="display: flex; align-items: center;">
+                      <span style="color: ${color}; margin-right: 4px; font-size: 10px;">●</span>
+                      <span style="color: ${color}; font-size: 11px;">${status}</span>
+                    </div>
+                  ` : ''}
+                </div>
+              </div>
+              <div style="text-align: center; color: #007bff; font-size: 11px; font-weight: 500; margin-top: 8px; padding-top: 8px; border-top: 1px solid #eee;">
+                Click to view full details →
+              </div>
+            </div>
+          `;
+          
+          customIcon = createVendorIcon();
+        } else {
+          // Multiple vendors - use grouped popup
+          popupContent = createGroupedPopupContent(vendorsAtLocation);
+          
+          // Create clustered icon with count
+          customIcon = L.divIcon({
+            className: 'vendor-cluster',
+            html: `
+              <div style="
+                background: #C80B41;
+                color: white;
+                border-radius: 50%;
+                width: 32px;
+                height: 32px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-weight: bold;
+                font-size: 12px;
+                border: 3px solid white;
+                box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+              ">
+                ${vendorsAtLocation.length}
+              </div>
+            `,
+            iconSize: [32, 32],
+            iconAnchor: [16, 32],
+            popupAnchor: [0, -32],
+          });
+        }
 
         const marker = L.marker([coords.latitude, coords.longitude], {
           icon: customIcon,
         })
           .addTo(mapRef.current!)
           .bindPopup(popupContent, {
-            maxWidth: 250,
-            className: 'custom-popup-container'
+            maxWidth: vendorsAtLocation.length > 1 ? 320 : 250,
+            className: vendorsAtLocation.length > 1 ? 'grouped-popup-container' : 'custom-popup-container'
           });
 
-        markersRef.current[vendor._id] = marker;
-        validMarkers.push(marker);
-        console.log(`Successfully added marker for ${vendor.name}`);
+        // Store marker with a combined key for grouped locations
+        const markerKey = vendorsAtLocation.length === 1 
+          ? vendorsAtLocation[0]._id 
+          : `group_${locationKey}`;
+        markersRef.current[markerKey] = marker;
+        
+        console.log(`Successfully added marker for ${vendorsAtLocation.length} vendor(s) at location`);
       } catch (markerError) {
-        console.error(`Error creating marker for ${vendor.name}:`, markerError);
+        console.error(`Error creating marker for location group:`, markerError);
       }
     });
 
-    console.log(`Added ${validMarkers.length} markers to map`);
+    console.log(`Added ${Object.keys(markersRef.current).length} markers to map`);
 
-    // Fit map bounds to include all markers if we don't have user location
-    if (validMarkers.length > 0 && !userLocation) {
+    // Fit map bounds if no user location
+    if (Object.keys(markersRef.current).length > 0 && !userLocation) {
       try {
-        const group = L.featureGroup(validMarkers);
+        const group = L.featureGroup(Object.values(markersRef.current));
         mapRef.current.fitBounds(group.getBounds().pad(0.1));
         console.log("Fitted map bounds to include all markers");
       } catch (boundsError) {
@@ -593,8 +763,16 @@ function MapDisplay() {
 
   // Add open/close functions
   const openVendorCard = (vendor: Vendor) => {
-    setSelectedVendor(vendor);
-    setIsVendorCardVisible(true);
+    if (selectedVendor && selectedVendor._id !== vendor._id) {
+      setIsVendorCardVisible(false);
+      setTimeout(() => {
+        setSelectedVendor(vendor);
+        setIsVendorCardVisible(true);
+      }, 800); // match the sidebar transition duration
+    } else {
+      setSelectedVendor(vendor);
+      setIsVendorCardVisible(true);
+    }
   };
   const closeVendorCard = () => {
     setSelectedVendor(null);
@@ -609,79 +787,297 @@ function MapDisplay() {
     }
   };
 
+  // Search bar logic
+  useEffect(() => {
+    if (searchTerm.trim() === '') {
+      setSearchResults([]);
+      setShowSuggestions(false);
+      return;
+    }
+    const results = vendors.filter(vendor =>
+      (vendor.name || '').toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    setSearchResults(results);
+    setShowSuggestions(true);
+  }, [searchTerm, vendors]);
+
+  const handleSearchSelect = (vendor: Vendor) => {
+    setSearchTerm(vendor.name || '');
+    setShowSuggestions(false);
+    // Zoom to vendor and open popup/card
+    let coords = getVendorCoordinates(vendor);
+    if (coords && mapRef.current) {
+      // Use flyTo for smooth transition and center zoom
+      mapRef.current.flyTo([coords.latitude, coords.longitude], 17, {
+        animate: true,
+        duration: 1.5
+      });
+      // Open popup if marker exists
+      const marker = markersRef.current[vendor._id];
+      if (marker) {
+        marker.openPopup();
+      }
+      // Open vendor card as well
+      openVendorCard(vendor);
+    }
+  };
+
+  // Replace all coordinate extraction logic for vendors in MapDisplay with the following helper:
+  const getVendorCoordinates = (vendor: Vendor): { latitude: number; longitude: number } | null => {
+    // 1. Try mapsLink extraction
+    if (vendor.mapsLink) {
+      const coords = extractCoordinates(vendor.mapsLink);
+      if (coords) return coords;
+    }
+    // 2. Try latitude/longitude fields
+    if (typeof vendor.latitude === 'number' && typeof vendor.longitude === 'number') {
+      return { latitude: vendor.latitude, longitude: vendor.longitude };
+    }
+    // 3. Try location.coordinates (WhatsApp pin)
+    if ((vendor as any).location && Array.isArray((vendor as any).location.coordinates) && (vendor as any).location.coordinates.length === 2) {
+      return {
+        latitude: (vendor as any).location.coordinates[1],
+        longitude: (vendor as any).location.coordinates[0],
+      };
+    }
+    return null;
+  };
+
+  // Fetch reviews when vendor card opens
+  useEffect(() => {
+    if (isVendorCardVisible && selectedVendor) {
+      api.getReviews(selectedVendor._id).then(res => {
+        if (res.success && res.data) setReviews(res.data);
+        else setReviews([]);
+      });
+    }
+  }, [isVendorCardVisible, selectedVendor]);
+
+  const handleReviewInput = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    setReviewForm({ ...reviewForm, [e.target.name]: e.target.value });
+  };
+
+  const handleStarClick = (star: number) => {
+    setReviewForm({ ...reviewForm, rating: star });
+  };
+
+  const handleReviewSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+    setReviewError(null);
+    if (!selectedVendor) return;
+    if (!reviewForm.name || !reviewForm.email || !reviewForm.rating) {
+      setReviewError('Name, email, and rating are required.');
+      setSubmitting(false);
+      return;
+    }
+    const reviewData = {
+      vendorId: selectedVendor._id,
+      name: reviewForm.name,
+      email: reviewForm.email,
+      rating: reviewForm.rating,
+      comment: reviewForm.comment,
+    };
+    const res = await api.addReview(reviewData);
+    if (res.success && res.data) {
+      setReviews([res.data, ...reviews]);
+      setReviewForm({ name: '', email: '', rating: 0, comment: '' });
+      setShowAllReviews(false);
+    } else {
+      setReviewError(res.error || 'Failed to submit review.');
+    }
+    setSubmitting(false);
+  };
+
   return (
     <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column" }}>
-      {/* Logo in top-left for MapDisplay */}
+      {/* Top bar: Logo and Search Bar in a flex container for alignment */}
       <div
         style={{
           position: 'absolute',
           top: '20px',
           left: '20px',
-          zIndex: 1000,
-          cursor: 'pointer',
+          zIndex: 1200,
+          width: 'calc(100vw - 40px)',
+          maxWidth: '700px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '16px',
+          pointerEvents: 'none', // allow map interaction except for children
         }}
-        onClick={() => navigate('/')}
       >
-        <img src={logo} alt="Laari Logo" style={{ height: '100px' }} />
+        {/* Logo */}
+        <div
+          style={{
+            cursor: 'pointer',
+            pointerEvents: 'auto',
+            display: 'flex',
+            alignItems: 'center',
+            height: '60px',
+          }}
+          onClick={() => navigate('/')}
+        >
+          <img src={logo} alt="Laari Logo" style={{ height: '60px', width: 'auto' }} />
+        </div>
+        {/* Search Bar */}
+        <div
+          style={{
+            flex: 1,
+            minWidth: 0,
+            display: 'flex',
+            alignItems: 'center',
+            pointerEvents: 'auto',
+          }}
+        >
+          <div style={{ position: 'relative', width: '100%', maxWidth: '400px' }}>
+            <input
+              type="text"
+              placeholder="Search for a vendor..."
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              onFocus={() => setShowSuggestions(searchResults.length > 0)}
+              style={{
+                width: '100%',
+                padding: '12px 16px',
+                borderRadius: '24px',
+                border: '1px solid #ccc',
+                fontSize: '16px',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.07)',
+                outline: 'none',
+                background: 'white',
+              }}
+            />
+            {showSuggestions && searchResults.length > 0 && (
+              <div style={{
+                position: 'absolute',
+                top: '48px',
+                left: 0,
+                width: '100%',
+                background: 'white',
+                border: '1px solid #eee',
+                borderRadius: '0 0 12px 12px',
+                boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
+                maxHeight: '220px',
+                overflowY: 'auto',
+                zIndex: 1300,
+              }}>
+                {searchResults.map(vendor => (
+                  <div
+                    key={vendor._id}
+                    onClick={() => handleSearchSelect(vendor)}
+                    style={{
+                      padding: '12px 16px',
+                      cursor: 'pointer',
+                      borderBottom: '1px solid #f3f3f3',
+                      fontWeight: 500,
+                      color: '#2c3e50',
+                      background: searchTerm === vendor.name ? '#f5f8ff' : 'white',
+                    }}
+                    onMouseDown={e => e.preventDefault()}
+                  >
+                    {vendor.name}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
-
-      {/* Map Content */}
-      <div id="map" style={{ width: "100%", height: "100%", flexGrow: 1 }}></div>
-      {error && (
+      {/* Error message covers search bar and can be dismissed */}
+      {error && showError && (
         <div
           className="error-message"
           style={{
             position: "absolute",
-            top: "10px",
-            left: "50%",
-            transform: "translateX(-50%)",
-            backgroundColor: "rgba(255, 0, 0, 0.7)",
+            top: 0,
+            left: 0,
+            width: "100vw",
+            backgroundColor: "#ff4d4d",
             color: "white",
-            padding: "10px",
-            borderRadius: "5px",
-            zIndex: 1000,
-            maxWidth: "90%",
-            textAlign: "center",
+            padding: "14px 60px 14px 24px",
+            borderRadius: 0,
+            zIndex: 1201,
+            maxWidth: "100vw",
+            textAlign: "left",
+            fontSize: "20px",
+            fontWeight: 500,
+            display: 'flex',
+            alignItems: 'center',
+            boxSizing: 'border-box',
           }}
         >
-          {error}
+          <span style={{ flex: 1 }}>{error}</span>
+          <button
+            onClick={() => setShowError(false)}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'white',
+              fontSize: '28px',
+              fontWeight: 700,
+              cursor: 'pointer',
+              marginLeft: '16px',
+              lineHeight: 1,
+              padding: 0,
+              opacity: 0.85,
+              transition: 'opacity 0.2s',
+            }}
+            aria-label="Close error message"
+            title="Close"
+            onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
+            onMouseLeave={e => (e.currentTarget.style.opacity = '0.85')}
+          >
+            ×
+          </button>
         </div>
       )}
-      <button
-        onClick={refreshUserLocation}
-        style={{
-          position: "absolute",
-          bottom: "20px",
-          right: "20px",
-          zIndex: 1000,
-          padding: "10px",
-          borderRadius: "50%",
-          backgroundColor: "white",
-          border: "2px solid #007bff",
-          cursor: "pointer",
-          width: "50px",
-          height: "50px",
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          boxShadow: "0 2px 5px rgba(0,0,0,0.2)",
-        }}
-        title="Refresh Location"
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="24"
-          height="24"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="#007bff"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
+      {/* Map Content */}
+      <div id="map" style={{ width: "100%", height: "100%", flexGrow: 1 }}></div>
+      {/* Top right controls */}
+      <div style={{
+        position: 'absolute',
+        top: 20,
+        right: 20,
+        zIndex: 1201,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'flex-end',
+        gap: 12,
+      }}>
+        <button
+          className="refresh-btn-desktop"
+          onClick={refreshUserLocation}
+          style={{
+            padding: '8px',
+            borderRadius: '50%',
+            backgroundColor: 'white',
+            border: '2px solid #007bff',
+            cursor: 'pointer',
+            width: '40px',
+            height: '40px',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            boxShadow: '0 2px 5px rgba(0,0,0,0.12)',
+          }}
+          title="Refresh Location"
         >
-          <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
-        </svg>
-      </button>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="#007bff"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+          </svg>
+        </button>
+        {/* Zoom controls will be rendered by Leaflet, but you can add custom ones here if needed */}
+      </div>
       {isLocationLoading && (
         <div
           style={{
@@ -732,7 +1128,7 @@ function MapDisplay() {
             boxShadow: '2px 0 15px rgba(0,0,0,0.15)',
             overflow: 'auto',
             transform: isVendorCardVisible ? 'translateX(0)' : 'translateX(-100%)',
-            transition: 'transform 0.3s ease-in-out'
+            transition: 'transform 0.8s cubic-bezier(0.4, 0.0, 0.2, 1)'
           }}
         >
           <button
@@ -845,28 +1241,42 @@ function MapDisplay() {
               marginBottom: '20px',
               justifyContent: 'center'
             }}>
-              <a
-                href={selectedVendor.mapsLink || '#'}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '10px 16px',
-                  backgroundColor: '#007bff',
-                  color: 'white',
-                  borderRadius: '8px',
-                  textDecoration: 'none',
-                  fontWeight: '500',
-                  fontSize: '13px',
-                  transition: 'background-color 0.2s',
-                  flex: 1,
-                  justifyContent: 'center'
-                }}
-              >
-                📍 Directions
-              </a>
+              {/* Directions Button: open Google Maps directions from user location to vendor */}
+              {(() => {
+                const vendorCoords = getVendorCoordinates(selectedVendor);
+                let directionsUrl = '#';
+                if (vendorCoords) {
+                  let origin = 'My+Location';
+                  if (userLocation && typeof userLocation.latitude === 'number' && typeof userLocation.longitude === 'number') {
+                    origin = `${userLocation.latitude},${userLocation.longitude}`;
+                  }
+                  directionsUrl = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${vendorCoords.latitude},${vendorCoords.longitude}&travelmode=driving`;
+                }
+                return (
+                  <a
+                    href={directionsUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '10px 16px',
+                      backgroundColor: '#007bff',
+                      color: 'white',
+                      borderRadius: '8px',
+                      textDecoration: 'none',
+                      fontWeight: '500',
+                      fontSize: '13px',
+                      transition: 'background-color 0.2s',
+                      flex: 1,
+                      justifyContent: 'center'
+                    }}
+                  >
+                    📍 Directions
+                  </a>
+                );
+              })()}
               {selectedVendor.contactNumber && (
                 <a
                   href={`tel:${selectedVendor.contactNumber}`}
@@ -1004,6 +1414,438 @@ function MapDisplay() {
                 </div>
               )}
             </div>
+
+            {/* Reviews & Ratings - Enhanced Version */}
+            <div style={{ 
+              marginTop: 24, 
+              backgroundColor: '#f8f9fa', 
+              borderRadius: 12, 
+              padding: 16, 
+              border: '1px solid #e9ecef' 
+            }}>
+              <div style={{ 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                alignItems: 'center', 
+                marginBottom: 16 
+              }}>
+                <h3 style={{ 
+                  fontSize: '16px', 
+                  color: '#2c3e50', 
+                  margin: 0, 
+                  fontWeight: 600 
+                }}>
+                  Reviews & Ratings
+                </h3>
+                {reviews.length > 0 && (
+                  <div style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: 6,
+                    backgroundColor: '#fff',
+                    padding: '4px 8px',
+                    borderRadius: 8,
+                    border: '1px solid #e9ecef'
+                  }}>
+                    <span style={{ 
+                      color: '#f5b50a', 
+                      fontSize: 14, 
+                      fontWeight: 'bold' 
+                    }}>
+                      {(reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length).toFixed(1)}
+                    </span>
+                    <div style={{ color: '#f5b50a', fontSize: 12 }}>
+                      {'★'.repeat(Math.round(reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length))}
+                    </div>
+                    <span style={{ 
+                      color: '#666', 
+                      fontSize: 11 
+                    }}>
+                      ({reviews.length})
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Reviews List */}
+              <div style={{ 
+                maxHeight: showAllReviews ? '400px' : '200px', 
+                overflowY: 'auto',
+                marginBottom: 16,
+                backgroundColor: '#fff',
+                borderRadius: 8,
+                border: '1px solid #e9ecef'
+              }}>
+                {reviews.length === 0 ? (
+                  <div style={{ 
+                    color: '#888', 
+                    fontSize: '13px', 
+                    textAlign: 'center',
+                    padding: 24,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: 8
+                  }}>
+                    <div style={{ 
+                      fontSize: 32, 
+                      opacity: 0.3 
+                    }}>
+                      ⭐
+                    </div>
+                    <div>No reviews yet</div>
+                    <div style={{ fontSize: 11, color: '#aaa' }}>
+                      Be the first to share your experience!
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    {reviews.slice(0, showAllReviews ? reviews.length : 2).map((r, idx) => (
+                      <div key={r._id || idx} style={{ 
+                        padding: 12,
+                        borderBottom: idx < Math.min(reviews.length - 1, showAllReviews ? reviews.length - 1 : 1) ? '1px solid #f0f0f0' : 'none'
+                      }}>
+                        <div style={{ 
+                          display: 'flex', 
+                          justifyContent: 'space-between', 
+                          alignItems: 'flex-start',
+                          marginBottom: 6
+                        }}>
+                          <div style={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: 8 
+                          }}>
+                            <div style={{
+                              width: 32,
+                              height: 32,
+                              borderRadius: '50%',
+                              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              color: 'white',
+                              fontSize: 12,
+                              fontWeight: 'bold'
+                            }}>
+                              {(r.name || 'A').charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                              <div style={{ 
+                                fontWeight: 600, 
+                                fontSize: 13,
+                                color: '#2c3e50'
+                              }}>
+                                {r.name}
+                              </div>
+                              <div style={{ 
+                                fontSize: 10, 
+                                color: '#888'
+                              }}>
+                                {r.createdAt ? new Date(r.createdAt).toLocaleDateString('en-US', { 
+                                  month: 'short', 
+                                  day: 'numeric', 
+                                  year: 'numeric' 
+                                }) : ''}
+                              </div>
+                            </div>
+                          </div>
+                          <div style={{ 
+                            backgroundColor: '#f8f9fa',
+                            padding: '2px 6px',
+                            borderRadius: 4,
+                            border: '1px solid #e9ecef'
+                          }}>
+                            <div style={{ 
+                              color: '#f5b50a', 
+                              fontSize: 12,
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 2
+                            }}>
+                              <span style={{ fontSize: 10 }}>★</span>
+                              <span style={{ fontWeight: 600 }}>{r.rating}</span>
+                            </div>
+                          </div>
+                        </div>
+                        {r.comment && (
+                          <div style={{ 
+                            fontSize: 12, 
+                            color: '#444',
+                            lineHeight: 1.4,
+                            marginLeft: 40,
+                            fontStyle: 'italic'
+                          }}>
+                            "{r.comment}"
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                    {reviews.length > 2 && (
+                      <div style={{ 
+                        textAlign: 'center', 
+                        padding: 8,
+                        borderTop: '1px solid #f0f0f0'
+                      }}>
+                        <button 
+                          style={{ 
+                            fontSize: 12, 
+                            color: '#007bff', 
+                            background: 'none', 
+                            border: 'none', 
+                            cursor: 'pointer',
+                            fontWeight: 500,
+                            padding: '4px 8px',
+                            borderRadius: 4,
+                            transition: 'background-color 0.2s'
+                          }} 
+                          onClick={() => setShowAllReviews(!showAllReviews)}
+                          onMouseEnter={e => (e.target as HTMLButtonElement).style.backgroundColor = '#f0f8ff'}
+                          onMouseLeave={e => (e.target as HTMLButtonElement).style.backgroundColor = 'transparent'}
+                        >
+                          {showAllReviews ? '↑ Show less' : `↓ Show all ${reviews.length} reviews`}
+                        </button>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+
+              {/* Add Review Form */}
+              <div style={{ 
+                backgroundColor: '#fff',
+                borderRadius: 8,
+                padding: 16,
+                border: '1px solid #e9ecef'
+              }}>
+                <h4 style={{ 
+                  fontSize: 14, 
+                  color: '#2c3e50', 
+                  margin: '0 0 12px 0',
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6
+                }}>
+                  <span style={{ fontSize: 16 }}>✍️</span>
+                  Write a Review
+                </h4>
+                
+                <form onSubmit={handleReviewSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <div style={{ flex: 1 }}>
+                      <input 
+                        name="name" 
+                        value={reviewForm.name} 
+                        onChange={handleReviewInput} 
+                        placeholder="Your Name" 
+                        style={{ 
+                          width: '100%', 
+                          padding: '8px 12px', 
+                          borderRadius: 6, 
+                          border: '1px solid #ddd', 
+                          fontSize: 13,
+                          transition: 'border-color 0.2s, box-shadow 0.2s',
+                          outline: 'none'
+                        }} 
+                        onFocus={e => {
+                          (e.target as HTMLInputElement).style.borderColor = '#007bff';
+                          (e.target as HTMLInputElement).style.boxShadow = '0 0 0 2px rgba(0,123,255,0.1)';
+                        }}
+                        onBlur={e => {
+                          (e.target as HTMLInputElement).style.borderColor = '#ddd';
+                          (e.target as HTMLInputElement).style.boxShadow = 'none';
+                        }}
+                        required 
+                      />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <input 
+                        name="email" 
+                        value={reviewForm.email} 
+                        onChange={handleReviewInput} 
+                        placeholder="Your Email" 
+                        type="email" 
+                        style={{ 
+                          width: '100%', 
+                          padding: '8px 12px', 
+                          borderRadius: 6, 
+                          border: '1px solid #ddd', 
+                          fontSize: 13,
+                          transition: 'border-color 0.2s, box-shadow 0.2s',
+                          outline: 'none'
+                        }} 
+                        onFocus={e => {
+                          (e.target as HTMLInputElement).style.borderColor = '#007bff';
+                          (e.target as HTMLInputElement).style.boxShadow = '0 0 0 2px rgba(0,123,255,0.1)';
+                        }}
+                        onBlur={e => {
+                          (e.target as HTMLInputElement).style.borderColor = '#ddd';
+                          (e.target as HTMLInputElement).style.boxShadow = 'none';
+                        }}
+                        required 
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ 
+                    display: 'flex', 
+                    flexDirection: 'column',
+                    gap: 8,
+                    padding: 12,
+                    backgroundColor: '#f8f9fa',
+                    borderRadius: 6,
+                    border: '1px solid #e9ecef'
+                  }}>
+                    <div style={{ 
+                      fontSize: 13, 
+                      fontWeight: 500, 
+                      color: '#2c3e50',
+                      marginBottom: 4
+                    }}>
+                      Rate your experience:
+                    </div>
+                    <div style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: 4,
+                      justifyContent: 'center'
+                    }}>
+                      {[1,2,3,4,5].map(star => (
+                        <span 
+                          key={star} 
+                          style={{ 
+                            cursor: 'pointer', 
+                            color: reviewForm.rating >= star ? '#f5b50a' : '#ddd', 
+                            fontSize: 24,
+                            transition: 'color 0.2s, transform 0.1s',
+                            userSelect: 'none'
+                          }} 
+                          onClick={() => handleStarClick(star)}
+                          onMouseEnter={e => {
+                            (e.target as HTMLSpanElement).style.transform = 'scale(1.1)';
+                          }}
+                          onMouseLeave={e => {
+                            (e.target as HTMLSpanElement).style.transform = 'scale(1)';
+                          }}
+                        >
+                          {reviewForm.rating >= star ? '★' : '☆'}
+                        </span>
+                      ))}
+                    </div>
+                    {reviewForm.rating > 0 && (
+                      <div style={{ 
+                        textAlign: 'center', 
+                        fontSize: 11, 
+                        color: '#666',
+                        marginTop: 4
+                      }}>
+                        {reviewForm.rating === 1 && "Poor"}
+                        {reviewForm.rating === 2 && "Fair"}
+                        {reviewForm.rating === 3 && "Good"}
+                        {reviewForm.rating === 4 && "Very Good"}
+                        {reviewForm.rating === 5 && "Excellent"}
+                      </div>
+                    )}
+                  </div>
+
+                  <div>
+                    <textarea 
+                      name="comment" 
+                      value={reviewForm.comment} 
+                      onChange={handleReviewInput} 
+                      placeholder="Share your experience (optional)" 
+                      style={{ 
+                        width: '100%', 
+                        padding: '8px 12px', 
+                        borderRadius: 6, 
+                        border: '1px solid #ddd', 
+                        fontSize: 13, 
+                        minHeight: 60,
+                        resize: 'vertical',
+                        fontFamily: 'inherit',
+                        transition: 'border-color 0.2s, box-shadow 0.2s',
+                        outline: 'none'
+                      }} 
+                      onFocus={e => {
+                        (e.target as HTMLTextAreaElement).style.borderColor = '#007bff';
+                        (e.target as HTMLTextAreaElement).style.boxShadow = '0 0 0 2px rgba(0,123,255,0.1)';
+                      }}
+                      onBlur={e => {
+                        (e.target as HTMLTextAreaElement).style.borderColor = '#ddd';
+                        (e.target as HTMLTextAreaElement).style.boxShadow = 'none';
+                      }}
+                    />
+                  </div>
+
+                  {reviewError && (
+                    <div style={{ 
+                      color: '#dc3545', 
+                      fontSize: 12, 
+                      backgroundColor: '#f8d7da',
+                      padding: 8,
+                      borderRadius: 4,
+                      border: '1px solid #f5c6cb'
+                    }}>
+                      {reviewError}
+                    </div>
+                  )}
+
+                  <button 
+                    type="submit" 
+                    disabled={submitting || reviewForm.rating === 0} 
+                    style={{ 
+                      width: '100%', 
+                      background: submitting || reviewForm.rating === 0 ? '#6c757d' : '#007bff', 
+                      color: 'white', 
+                      border: 'none', 
+                      borderRadius: 6, 
+                      padding: '10px 16px', 
+                      fontWeight: 600, 
+                      fontSize: 14, 
+                      cursor: submitting || reviewForm.rating === 0 ? 'not-allowed' : 'pointer',
+                      opacity: submitting || reviewForm.rating === 0 ? 0.7 : 1,
+                      transition: 'background-color 0.2s, transform 0.1s',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 6
+                    }}
+                    onMouseEnter={e => {
+                      if (!submitting && reviewForm.rating > 0) {
+                        (e.target as HTMLButtonElement).style.backgroundColor = '#0056b3';
+                        (e.target as HTMLButtonElement).style.transform = 'translateY(-1px)';
+                      }
+                    }}
+                    onMouseLeave={e => {
+                      if (!submitting && reviewForm.rating > 0) {
+                        (e.target as HTMLButtonElement).style.backgroundColor = '#007bff';
+                        (e.target as HTMLButtonElement).style.transform = 'translateY(0)';
+                      }
+                    }}
+                  >
+                    {submitting ? (
+                      <>
+                        <span style={{ 
+                          width: 12, 
+                          height: 12, 
+                          border: '2px solid #fff', 
+                          borderTop: '2px solid transparent', 
+                          borderRadius: '50%', 
+                          animation: 'spin 1s linear infinite' 
+                        }}></span>
+                        Submitting...
+                      </>
+                    ) : (
+                      <>
+                        <span style={{ fontSize: 16 }}>📝</span>
+                        Submit Review
+                      </>
+                    )}
+                  </button>
+                </form>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -1021,6 +1863,36 @@ function MapDisplay() {
           onClick={closeVendorCard}
         />
       )}
+      {/* WhatsApp Floating Button - Bottom Right */}
+      <a
+        href="https://wa.me/15557897194?text=Hi"
+        target="_blank"
+        rel="noopener noreferrer"
+        style={{
+          position: 'fixed',
+          bottom: 24,
+          right: 24,
+          zIndex: 2500,
+          width: 50,
+          height: 50,
+          borderRadius: '50%',
+          background: '#25D366',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          boxShadow: 'none',
+          border: 'none',
+          cursor: 'pointer',
+          transition: 'background 0.2s',
+          padding: 0,
+        }}
+        aria-label="Chat on WhatsApp"
+      >
+        <svg width="28" height="28" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="16" cy="16" r="16" fill="#25D366"/>
+          <path d="M16 6.5C10.2 6.5 5.5 11.2 5.5 17C5.5 18.7 6 20.3 6.8 21.7L5 27L10.4 25.2C11.7 25.9 13.3 26.5 15 26.5C20.8 26.5 25.5 21.8 25.5 16C25.5 11.2 20.8 6.5 16 6.5ZM15 24.5C13.5 24.5 12.1 24.1 10.9 23.4L10.6 23.2L7.5 24.2L8.5 21.1L8.3 20.8C7.5 19.5 7 18 7 16.5C7 12.4 10.4 9 14.5 9C18.6 9 22 12.4 22 16.5C22 20.6 18.6 24 14.5 24C14.3 24 14.1 24 14 24C14.3 24.2 14.6 24.4 15 24.5ZM19.2 18.7C18.9 18.6 17.7 18 17.4 17.9C17.1 17.8 16.9 17.8 16.7 18.1C16.5 18.3 16.2 18.7 16 18.9C15.8 19.1 15.6 19.1 15.3 19C14.2 18.6 13.2 17.7 12.6 16.7C12.5 16.4 12.6 16.2 12.8 16C13 15.8 13.2 15.5 13.3 15.3C13.4 15.1 13.4 14.9 13.3 14.7C13.2 14.5 12.7 13.3 12.5 12.8C12.3 12.3 12.1 12.3 11.9 12.3C11.7 12.3 11.5 12.3 11.3 12.3C11.1 12.3 10.8 12.4 10.7 12.6C10.2 13.2 10 14.1 10.2 15.1C10.5 16.7 11.7 18.2 13.2 19.1C14.7 20 16.5 20.2 18.1 19.7C19.1 19.4 20 18.8 20.6 18.3C20.8 18.2 20.9 18 20.9 17.8C20.9 17.6 20.8 17.4 20.7 17.3C20.6 17.2 20.5 17.1 20.3 17.1C20.1 17.1 19.5 17.1 19.2 18.7Z" fill="#fff"/>
+        </svg>
+      </a>
     </div>
   );
 }

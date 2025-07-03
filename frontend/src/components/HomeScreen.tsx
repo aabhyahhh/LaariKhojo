@@ -275,7 +275,7 @@ const HomeScreen: React.FC = () => {
         <button
           className="get-started-btn"
           onClick={handleGetStartedClick}
-          style={{ backgroundColor: "#d50540", margin:'15px' }}
+          style={{ backgroundColor: "#C80B41", margin:'15px' }}
         >
           Nearby Vendors
           {/* Arrow icon - using a simple SVG for now */}
@@ -285,11 +285,11 @@ const HomeScreen: React.FC = () => {
         </button>
         <div style={{ padding: "0 5px 5px 5px", fontSize: "20px", textAlign: "center" }}>
           {userLocation && (
-            <p style={{ fontSize: "16px", color: "#ff0028", fontWeight: "bold", alignItems: "center", marginTop:'20px' }}>
+            <p style={{ fontSize: "16px", color: "#C80B41", fontWeight: "bold", alignItems: "center", marginTop:'20px' }}>
               <span style={{ marginRight: "5px" }}>📍</span>{nearbyCount} vendors within 2km radius
             </p>
           )}
-          <p style={{ fontSize: "16px", color: "#ff0028", fontWeight: "bold", alignItems: "center", marginTop:'20px' }}><span style={{ marginRight: "5px" }}>Total</span>{vendors.length} vendors live on Laari Khojo!</p>
+          <p style={{ fontSize: "16px", color: "#C80B41", fontWeight: "bold", alignItems: "center", marginTop:'20px' }}><span style={{ marginRight: "5px" }}>Total</span>{vendors.length} vendors live on Laari Khojo!</p>
         </div>
       </div>
 
