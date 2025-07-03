@@ -10,6 +10,7 @@ const User = require('./models/userModel');
 
 const authRoutes = require("./routes/authRoute");
 const webhookRoutes = require("./routes/webhookRoute");
+const reviewRoutes = require("./routes/reviewRoute");
 
 const allowedOrigins = [
   "https://laarikhojo.in",  // Without trailing slash
@@ -63,6 +64,7 @@ app.use(express.static(path.join(__dirname, '../frontend/dist')));
 
 app.use("/api", authRoutes);
 app.use("/api", webhookRoutes);
+app.use("/api", reviewRoutes);
 
 app.get("/api/expand-url", async (req, res) => {
   const { url } = req.query;
