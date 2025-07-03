@@ -546,12 +546,7 @@ function MapDisplay() {
       if (processedVendors.has(vendor._id)) return;
 
       // Get coordinates for this vendor
-      let coords = null;
-      if (typeof vendor.latitude === 'number' && typeof vendor.longitude === 'number') {
-        coords = { latitude: vendor.latitude, longitude: vendor.longitude };
-      } else if (vendor.mapsLink) {
-        coords = extractCoordinates(vendor.mapsLink);
-      }
+      let coords = getVendorCoordinates(vendor);
       
       if (!coords) {
         console.log(`Could not determine coordinates for ${vendor.name}`);
@@ -575,13 +570,7 @@ function MapDisplay() {
 
       // Use the first vendor's coordinates as the group location
       const firstVendor = vendorsAtLocation[0];
-      let coords = null;
-      
-      if (typeof firstVendor.latitude === 'number' && typeof firstVendor.longitude === 'number') {
-        coords = { latitude: firstVendor.latitude, longitude: firstVendor.longitude };
-      } else if (firstVendor.mapsLink) {
-        coords = extractCoordinates(firstVendor.mapsLink);
-      }
+      let coords = getVendorCoordinates(firstVendor);
       
       if (!coords) return;
 
@@ -811,12 +800,7 @@ function MapDisplay() {
     setSearchTerm(vendor.name || '');
     setShowSuggestions(false);
     // Zoom to vendor and open popup/card
-    let coords = null;
-    if (typeof vendor.latitude === 'number' && typeof vendor.longitude === 'number') {
-      coords = { latitude: vendor.latitude, longitude: vendor.longitude };
-    } else if (vendor.mapsLink) {
-      coords = extractCoordinates(vendor.mapsLink);
-    }
+    let coords = getVendorCoordinates(vendor);
     if (coords && mapRef.current) {
       // Use flyTo for smooth transition and center zoom
       mapRef.current.flyTo([coords.latitude, coords.longitude], 17, {
@@ -831,6 +815,27 @@ function MapDisplay() {
       // Open vendor card as well
       openVendorCard(vendor);
     }
+  };
+
+  // Replace all coordinate extraction logic for vendors in MapDisplay with the following helper:
+  const getVendorCoordinates = (vendor: Vendor): { latitude: number; longitude: number } | null => {
+    // 1. Try mapsLink extraction
+    if (vendor.mapsLink) {
+      const coords = extractCoordinates(vendor.mapsLink);
+      if (coords) return coords;
+    }
+    // 2. Try latitude/longitude fields
+    if (typeof vendor.latitude === 'number' && typeof vendor.longitude === 'number') {
+      return { latitude: vendor.latitude, longitude: vendor.longitude };
+    }
+    // 3. Try location.coordinates (WhatsApp pin)
+    if ((vendor as any).location && Array.isArray((vendor as any).location.coordinates) && (vendor as any).location.coordinates.length === 2) {
+      return {
+        latitude: (vendor as any).location.coordinates[1],
+        longitude: (vendor as any).location.coordinates[0],
+      };
+    }
+    return null;
   };
 
   return (
@@ -1175,28 +1180,42 @@ function MapDisplay() {
               marginBottom: '20px',
               justifyContent: 'center'
             }}>
-              <a
-                href={selectedVendor.mapsLink || '#'}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '10px 16px',
-                  backgroundColor: '#007bff',
-                  color: 'white',
-                  borderRadius: '8px',
-                  textDecoration: 'none',
-                  fontWeight: '500',
-                  fontSize: '13px',
-                  transition: 'background-color 0.2s',
-                  flex: 1,
-                  justifyContent: 'center'
-                }}
-              >
-                📍 Directions
-              </a>
+              {/* Directions Button: open Google Maps directions from user location to vendor */}
+              {(() => {
+                const vendorCoords = getVendorCoordinates(selectedVendor);
+                let directionsUrl = '#';
+                if (vendorCoords) {
+                  let origin = 'My+Location';
+                  if (userLocation && typeof userLocation.latitude === 'number' && typeof userLocation.longitude === 'number') {
+                    origin = `${userLocation.latitude},${userLocation.longitude}`;
+                  }
+                  directionsUrl = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${vendorCoords.latitude},${vendorCoords.longitude}&travelmode=driving`;
+                }
+                return (
+                  <a
+                    href={directionsUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '10px 16px',
+                      backgroundColor: '#007bff',
+                      color: 'white',
+                      borderRadius: '8px',
+                      textDecoration: 'none',
+                      fontWeight: '500',
+                      fontSize: '13px',
+                      transition: 'background-color 0.2s',
+                      flex: 1,
+                      justifyContent: 'center'
+                    }}
+                  >
+                    📍 Directions
+                  </a>
+                );
+              })()}
               {selectedVendor.contactNumber && (
                 <a
                   href={`tel:${selectedVendor.contactNumber}`}
@@ -1351,6 +1370,44 @@ function MapDisplay() {
           onClick={closeVendorCard}
         />
       )}
+      {/* WhatsApp Floating Button */}
+      <a
+        href="https://wa.me/15557897194?text=Hi"
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="Chat with us on WhatsApp"
+        style={{
+          position: 'fixed',
+          bottom: '28px',
+          right: '28px',
+          zIndex: 2500,
+          width: '60px',
+          height: '60px',
+          borderRadius: '50%',
+          background: '#25D366',
+          boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          transition: 'box-shadow 0.2s, transform 0.2s',
+          cursor: 'pointer',
+          textDecoration: 'none',
+        }}
+        onMouseEnter={e => {
+          (e.currentTarget as HTMLAnchorElement).style.boxShadow = '0 8px 24px rgba(0,0,0,0.28)';
+          (e.currentTarget as HTMLAnchorElement).style.transform = 'scale(1.08)';
+        }}
+        onMouseLeave={e => {
+          (e.currentTarget as HTMLAnchorElement).style.boxShadow = '0 4px 16px rgba(0,0,0,0.18)';
+          (e.currentTarget as HTMLAnchorElement).style.transform = 'scale(1)';
+        }}
+      >
+        {/* WhatsApp SVG Icon */}
+        <svg width="34" height="34" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="16" cy="16" r="16" fill="#25D366"/>
+          <path d="M16 6.5C10.2 6.5 5.5 11.2 5.5 17C5.5 18.7 6 20.3 6.8 21.7L5 27L10.4 25.2C11.7 25.9 13.3 26.5 15 26.5C20.8 26.5 25.5 21.8 25.5 16C25.5 11.2 20.8 6.5 16 6.5ZM15 24.5C13.5 24.5 12.1 24.1 10.9 23.4L10.6 23.2L7.5 24.2L8.5 21.1L8.3 20.8C7.5 19.5 7 18 7 16.5C7 12.4 10.4 9 14.5 9C18.6 9 22 12.4 22 16.5C22 20.6 18.6 24 14.5 24C14.3 24 14.1 24 14 24C14.3 24.2 14.6 24.4 15 24.5ZM19.2 18.7C18.9 18.6 17.7 18 17.4 17.9C17.1 17.8 16.9 17.8 16.7 18.1C16.5 18.3 16.2 18.7 16 18.9C15.8 19.1 15.6 19.1 15.3 19C14.2 18.6 13.2 17.7 12.6 16.7C12.5 16.4 12.6 16.2 12.8 16C13 15.8 13.2 15.5 13.3 15.3C13.4 15.1 13.4 14.9 13.3 14.7C13.2 14.5 12.7 13.3 12.5 12.8C12.3 12.3 12.1 12.3 11.9 12.3C11.7 12.3 11.5 12.3 11.3 12.3C11.1 12.3 10.8 12.4 10.7 12.6C10.2 13.2 10 14.1 10.2 15.1C10.5 16.7 11.7 18.2 13.2 19.1C14.7 20 16.5 20.2 18.1 19.7C19.1 19.4 20 18.8 20.6 18.3C20.8 18.2 20.9 18 20.9 17.8C20.9 17.6 20.8 17.4 20.7 17.3C20.6 17.2 20.5 17.1 20.3 17.1C20.1 17.1 19.5 17.1 19.2 18.7Z" fill="#fff"/>
+        </svg>
+      </a>
     </div>
   );
 }

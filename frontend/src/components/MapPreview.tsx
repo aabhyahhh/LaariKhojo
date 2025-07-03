@@ -29,6 +29,7 @@ interface Vendor {
   foodType?: string;
   topDishes?: Array<{ name: string; price?: number; description?: string; image?: string }>;
   gallery?: string[];
+  bestDishes?: Array<{ name: string; price?: number; description?: string; image?: string }>;
 }
 
 interface MapPreviewProps {
@@ -281,7 +282,7 @@ const MapPreview: React.FC<MapPreviewProps> = ({ vendors = [] }) => {
 
           // Create popup content with icons and collapsible operating hours
           const popupContent = `
-            <div class="custom-popup" style="font-size: 12px; line-height: 1.4; min-width: 200px; cursor: pointer;" onclick="window.openVendorCard('${vendor._id}')">
+            <div class="custom-popup" data-vendor-id="${vendor._id}" style="font-size: 12px; line-height: 1.4; min-width: 200px; cursor: pointer;">
               <div style="display: flex; align-items: flex-start; margin-bottom: 8px;">
                 ${vendor.profilePicture ? `
                   <img src="${vendor.profilePicture}" alt="${vendor.name}" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; margin-right: 12px; border: 2px solid #ddd;" />
@@ -339,6 +340,48 @@ const MapPreview: React.FC<MapPreviewProps> = ({ vendors = [] }) => {
     }
   };
 
+  // Add this useEffect to handle popup clicks and open the sidebar
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      // Find the closest element with a vendor id
+      let el = e.target as HTMLElement | null;
+      while (el && el !== document.body) {
+        // Check for custom-popup or vendor-item
+        if (el.classList.contains('custom-popup') || el.classList.contains('vendor-item')) {
+          // Try to extract vendorId from onclick attribute or data attribute
+          let vendorId = null;
+          // Try onclick="window.openVendorCard('...')"
+          const onclick = el.getAttribute('onclick');
+          if (onclick) {
+            const match = onclick.match(/openVendorCard\(['"]([a-fA-F0-9]+)['"]\)/);
+            if (match) vendorId = match[1];
+          }
+          // Or try data-vendor-id
+          if (!vendorId && el.hasAttribute('data-vendor-id')) {
+            vendorId = el.getAttribute('data-vendor-id');
+          }
+          if (vendorId) {
+            const vendor = vendors.find(v => v._id === vendorId);
+            if (vendor) {
+              openVendorCard(vendor);
+              break;
+            }
+          }
+        }
+        el = el.parentElement;
+      }
+    };
+    const mapDiv = mapContainerRef.current;
+    if (mapDiv) {
+      mapDiv.addEventListener('click', handler);
+    }
+    return () => {
+      if (mapDiv) {
+        mapDiv.removeEventListener('click', handler);
+      }
+    };
+  }, [vendors]);
+
   return (
     <div className="map-preview-container">
       <div className="map-preview-content">
@@ -350,33 +393,320 @@ const MapPreview: React.FC<MapPreviewProps> = ({ vendors = [] }) => {
               position: 'fixed',
               top: 0,
               left: 0,
-              width: '400px',
+              width: '320px',
               height: '100vh',
               backgroundColor: 'white',
               zIndex: 2000,
-              boxShadow: '2px 0 10px rgba(0,0,0,0.1)',
+              boxShadow: '2px 0 15px rgba(0,0,0,0.15)',
               overflow: 'auto',
               transform: isVendorCardVisible ? 'translateX(0)' : 'translateX(-100%)',
-              transition: 'transform 0.3s ease-in-out'
+              transition: 'transform 0.8s cubic-bezier(0.4, 0.0, 0.2, 1)'
             }}
           >
             <button
               onClick={closeVendorCard}
               style={{
                 position: 'absolute',
-                top: '15px',
-                right: '15px',
-                background: 'none',
+                top: '12px',
+                right: '12px',
+                background: 'rgba(0,0,0,0.1)',
                 border: 'none',
-                fontSize: '24px',
+                fontSize: '20px',
                 cursor: 'pointer',
                 color: '#666',
-                zIndex: 2001
+                zIndex: 2001,
+                width: '32px',
+                height: '32px',
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'background-color 0.2s'
               }}
+              onMouseEnter={e => (e.target as HTMLButtonElement).style.backgroundColor = 'rgba(0,0,0,0.2)'}
+              onMouseLeave={e => (e.target as HTMLButtonElement).style.backgroundColor = 'rgba(0,0,0,0.1)'}
             >
               ×
             </button>
-            {/* Vendor details JSX here (see user message for full details) */}
+            <div style={{ padding: '20px 16px' }}>
+              {/* Profile Picture and Name */}
+              <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+                {selectedVendor.profilePicture ? (
+                  <img
+                    src={selectedVendor.profilePicture}
+                    alt={selectedVendor.name || 'Vendor'}
+                    style={{
+                      width: '70px',
+                      height: '70px',
+                      borderRadius: '50%',
+                      objectFit: 'cover',
+                      border: '3px solid #eee',
+                      marginBottom: '8px',
+                    }}
+                  />
+                ) : (
+                  <div style={{
+                    width: '70px',
+                    height: '70px',
+                    borderRadius: '50%',
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'white',
+                    fontSize: '28px',
+                    fontWeight: 'bold',
+                    marginBottom: '8px',
+                  }}>
+                    {(selectedVendor.name?.charAt(0) || '?').toUpperCase()}
+                  </div>
+                )}
+                <h2 style={{ 
+                  margin: '8px 0 4px 0', 
+                  color: '#2c3e50', 
+                  fontSize: '18px',
+                  fontWeight: '600',
+                  lineHeight: '1.2'
+                }}>
+                  {selectedVendor.name || 'Not available'}
+                </h2>
+                <div style={{ 
+                  color: '#666', 
+                  marginBottom: '12px', 
+                  fontSize: '13px',
+                  fontWeight: '500'
+                }}>
+                  {selectedVendor.foodType || 'Not available'}
+                </div>
+              </div>
+
+              {/* Operating Status */}
+              {selectedVendor.operatingHours && (
+                <div style={{
+                  textAlign: 'center',
+                  marginBottom: '16px',
+                  padding: '8px 12px',
+                  backgroundColor: '#f8f9fa',
+                  borderRadius: '12px',
+                  border: '1px solid #e9ecef'
+                }}>
+                  <div style={{
+                    color: getOperatingStatus(selectedVendor.operatingHours).color,
+                    fontSize: '12px',
+                    fontWeight: '600',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '4px'
+                  }}>
+                    <span style={{ fontSize: '8px' }}>●</span>
+                    {getOperatingStatus(selectedVendor.operatingHours).status}
+                  </div>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div style={{ 
+                display: 'flex', 
+                gap: '8px', 
+                marginBottom: '20px',
+                justifyContent: 'center'
+              }}>
+                {/* Directions Button: open Google Maps directions from user location to vendor */}
+                {(() => {
+                  // Use vendor coordinates only (no userLocation in preview)
+                  let vendorCoords = null;
+                  if (selectedVendor.mapsLink) {
+                    const extractCoordinates = (mapsLink: string) => {
+                      const patterns = [
+                        /@(-?\d+\.\d+),(-?\d+\.\d+)/,
+                        /!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/,
+                        /place\/.*\/@(-?\d+\.\d+),(-?\d+\.\d+)/,
+                        /q=(-?\d+\.\d+),(-?\d+\.\d+)/,
+                      ];
+                      for (const pattern of patterns) {
+                        const match = mapsLink.match(pattern);
+                        if (match) {
+                          return {
+                            latitude: parseFloat(match[1]),
+                            longitude: parseFloat(match[2]),
+                          };
+                        }
+                      }
+                      return null;
+                    };
+                    vendorCoords = extractCoordinates(selectedVendor.mapsLink);
+                  }
+                  if (!vendorCoords && typeof selectedVendor.latitude === 'number' && typeof selectedVendor.longitude === 'number') {
+                    vendorCoords = { latitude: selectedVendor.latitude, longitude: selectedVendor.longitude };
+                  }
+                  let directionsUrl = '#';
+                  if (vendorCoords) {
+                    directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${vendorCoords.latitude},${vendorCoords.longitude}&travelmode=driving`;
+                  }
+                  return (
+                    <a
+                      href={directionsUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '10px 16px',
+                        backgroundColor: '#007bff',
+                        color: 'white',
+                        borderRadius: '8px',
+                        textDecoration: 'none',
+                        fontWeight: '500',
+                        fontSize: '13px',
+                        transition: 'background-color 0.2s',
+                        flex: 1,
+                        justifyContent: 'center'
+                      }}
+                    >
+                      📍 Directions
+                    </a>
+                  );
+                })()}
+                {selectedVendor.contactNumber && (
+                  <a
+                    href={`tel:${selectedVendor.contactNumber}`}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '10px 16px',
+                      backgroundColor: '#28a745',
+                      color: 'white',
+                      borderRadius: '8px',
+                      textDecoration: 'none',
+                      fontWeight: '500',
+                      fontSize: '13px',
+                      transition: 'background-color 0.2s',
+                      flex: 1,
+                      justifyContent: 'center'
+                    }}
+                  >
+                    📞 Call
+                  </a>
+                )}
+              </div>
+
+              {/* Contact Number */}
+              <div style={{ 
+                marginBottom: '16px', 
+                fontSize: '13px',
+                textAlign: 'center',
+                color: '#666'
+              }}>
+                <strong>Phone:</strong> {selectedVendor.contactNumber || 'Not available'}
+              </div>
+
+              {/* Operating Hours and Days - Compact */}
+              <div style={{ 
+                marginBottom: '20px', 
+                fontSize: '13px', 
+                color: '#444',
+                backgroundColor: '#f8f9fa',
+                padding: '12px',
+                borderRadius: '8px',
+                border: '1px solid #e9ecef'
+              }}>
+                <div style={{ marginBottom: '6px' }}>
+                  <strong>Hours:</strong> {
+                    selectedVendor.operatingHours && 
+                    selectedVendor.operatingHours.openTime && 
+                    selectedVendor.operatingHours.closeTime 
+                      ? `${selectedVendor.operatingHours.openTime} - ${selectedVendor.operatingHours.closeTime}` 
+                      : 'Not available'
+                  }
+                </div>
+                <div>
+                  <strong>Days:</strong> {
+                    selectedVendor.operatingHours && 
+                    selectedVendor.operatingHours.days && 
+                    selectedVendor.operatingHours.days.length > 0 
+                      ? selectedVendor.operatingHours.days
+                          .sort((a: number, b: number) => (a === 0 ? 7 : a) - (b === 0 ? 7 : b))
+                          .map((day: number) => ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][day])
+                          .join(', ') 
+                      : 'Not available'
+                  }
+                </div>
+              </div>
+
+              {/* Menu Options - Compact */}
+              <div style={{ textAlign: 'left' }}>
+                <h3 style={{ 
+                  fontSize: '15px', 
+                  color: '#2c3e50', 
+                  margin: '0 0 12px 0',
+                  fontWeight: '600'
+                }}>
+                  Menu
+                </h3>
+                {Array.isArray(selectedVendor.bestDishes ?? selectedVendor.topDishes ?? []) && (selectedVendor.bestDishes ?? selectedVendor.topDishes ?? []).length > 0 ? (
+                  <div style={{ 
+                    maxHeight: '200px', 
+                    overflowY: 'auto',
+                    backgroundColor: '#f8f9fa',
+                    padding: '12px',
+                    borderRadius: '8px',
+                    border: '1px solid #e9ecef'
+                  }}>
+                    {(selectedVendor.bestDishes ?? selectedVendor.topDishes ?? []).slice(0, 8).map((dish, idx) => (
+                      <div key={idx} style={{ 
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginBottom: '8px',
+                        fontSize: '13px',
+                        color: '#444',
+                        paddingBottom: '6px',
+                        borderBottom: idx < Math.min((selectedVendor.bestDishes ?? selectedVendor.topDishes ?? []).length - 1, 7) ? '1px solid #e9ecef' : 'none'
+                      }}>
+                        <span style={{ 
+                          fontWeight: '500',
+                          flex: 1,
+                          paddingRight: '8px'
+                        }}>
+                          {dish.name || 'Not available'}
+                        </span>
+                        {dish.price !== undefined && dish.price !== null ? (
+                          <span style={{ 
+                            color: '#28a745', 
+                            fontWeight: '600',
+                            fontSize: '12px'
+                          }}>
+                            ₹{dish.price}
+                          </span>
+                        ) : (
+                          <span style={{ 
+                            color: '#888', 
+                            fontSize: '11px'
+                          }}>
+                            N/A
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ 
+                    color: '#888', 
+                    fontSize: '13px',
+                    textAlign: 'center',
+                    padding: '20px',
+                    backgroundColor: '#f8f9fa',
+                    borderRadius: '8px',
+                    border: '1px solid #e9ecef'
+                  }}>
+                    Menu not available
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         )}
         {isVendorCardVisible && (
