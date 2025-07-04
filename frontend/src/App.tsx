@@ -794,9 +794,20 @@ function MapDisplay() {
       setShowSuggestions(false);
       return;
     }
-    const results = vendors.filter(vendor =>
-      (vendor.name || '').toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const lowerSearch = searchTerm.toLowerCase();
+    const results = vendors.filter(vendor => {
+      // Match vendor name
+      if ((vendor.name || '').toLowerCase().includes(lowerSearch)) {
+        return true;
+      }
+      // Match menu items (bestDishes)
+      if (Array.isArray(vendor.bestDishes)) {
+        return vendor.bestDishes.some(dish =>
+          (dish.name || '').toLowerCase().includes(lowerSearch)
+        );
+      }
+      return false;
+    });
     setSearchResults(results);
     setShowSuggestions(true);
   }, [searchTerm, vendors]);
