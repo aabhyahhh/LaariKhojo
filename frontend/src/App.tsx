@@ -187,21 +187,33 @@ function MapDisplay() {
     categories: []
   });
   const [showFilters, setShowFilters] = useState(false);
+  const [showOnlyOpen, setShowOnlyOpen] = useState(false);
 
   const navigate = useNavigate();
 
 
 
-  // Filter vendors based on active filters
+  // Filter vendors based on active filters and open status
   const applyFilters = (vendorList: Vendor[]) => {
+    let filteredVendors = vendorList;
+
+    // Apply open/closed filter first
+    if (showOnlyOpen) {
+      filteredVendors = filteredVendors.filter(vendor => {
+        const { status } = getOperatingStatus(vendor.operatingHours);
+        return status === 'Open Now';
+      });
+    }
+
+    // Apply food type and category filters
     if (activeFilters.foodTypes.length === 0 && activeFilters.categories.length === 0) {
-      return vendorList; // No filters applied, return all vendors
+      return filteredVendors; // No additional filters applied, return filtered vendors
     }
 
     console.log('Applying filters:', activeFilters);
-    console.log('Vendors to filter:', vendorList.length);
+    console.log('Vendors to filter:', filteredVendors.length);
 
-    return vendorList.filter(vendor => {
+    return filteredVendors.filter(vendor => {
       // Check food type filter
       const foodTypeMatch = activeFilters.foodTypes.length === 0 || 
         activeFilters.foodTypes.includes(vendor.foodType || 'none');
@@ -251,6 +263,7 @@ function MapDisplay() {
       foodTypes: [],
       categories: []
     });
+    setShowOnlyOpen(false);
     setFilteredVendors([]);
   };
 
@@ -1027,11 +1040,16 @@ function MapDisplay() {
 
   // Apply filters when vendors are loaded
   useEffect(() => {
-    if (vendors.length > 0 && (activeFilters.foodTypes.length > 0 || activeFilters.categories.length > 0)) {
-      const filtered = applyFilters(vendors);
-      setFilteredVendors(filtered);
+    if (vendors.length > 0) {
+      if (activeFilters.foodTypes.length > 0 || activeFilters.categories.length > 0 || showOnlyOpen) {
+        const filtered = applyFilters(vendors);
+        setFilteredVendors(filtered);
+      } else {
+        // No filters active, show all vendors
+        setFilteredVendors([]);
+      }
     }
-  }, [vendors, activeFilters]);
+  }, [vendors, activeFilters, showOnlyOpen]);
 
   // Add location refresh button
   const refreshUserLocation = () => {
@@ -1555,6 +1573,7 @@ function MapDisplay() {
             boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
             transition: 'all 0.2s',
             pointerEvents: 'auto',
+            marginBottom: '8px',
           }}
           onMouseEnter={(e) => {
             (e.target as HTMLButtonElement).style.backgroundColor = '#fff5f7';
@@ -1572,6 +1591,58 @@ function MapDisplay() {
           )}
         </button>
 
+        {/* What's Open Now Button */}
+        <button
+          onClick={() => {
+            const newShowOnlyOpen = !showOnlyOpen;
+            setShowOnlyOpen(newShowOnlyOpen);
+            
+            if (newShowOnlyOpen) {
+              // Apply open filter immediately
+              const filtered = applyFilters(vendors);
+              setFilteredVendors(filtered);
+            } else {
+              // Clear open filter - show all vendors or apply other active filters
+              if (activeFilters.foodTypes.length === 0 && activeFilters.categories.length === 0) {
+                setFilteredVendors([]); // This will show all vendors in the useEffect
+              } else {
+                // Reapply other active filters
+                const filtered = applyFilters(vendors);
+                setFilteredVendors(filtered);
+              }
+            }
+          }}
+          style={{
+            padding: '8px 16px',
+            backgroundColor: showOnlyOpen ? '#C80B41' : 'white',
+            border: '2px solid #C80B41',
+            borderRadius: '20px',
+            cursor: 'pointer',
+            fontSize: '14px',
+            fontWeight: '500',
+            color: showOnlyOpen ? 'white' : '#C80B41',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+            transition: 'all 0.2s',
+            pointerEvents: 'auto',
+          }}
+          onMouseEnter={(e) => {
+            if (!showOnlyOpen) {
+              (e.target as HTMLButtonElement).style.backgroundColor = '#fff5f7';
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!showOnlyOpen) {
+              (e.target as HTMLButtonElement).style.backgroundColor = 'white';
+            }
+          }}
+        >
+          <span>🕐</span>
+          {showOnlyOpen ? 'Show All' : "What's Open Now"}
+        </button>
+
         {/* Filter Panel Content */}
         {showFilters && (
           <div className="filter-panel" style={{ marginTop: '12px', pointerEvents: 'auto' }}>
@@ -1586,6 +1657,16 @@ function MapDisplay() {
               textAlign: 'center'
             }}>
               Showing {filteredVendors.length > 0 ? filteredVendors.length : vendors.length} of {vendors.length} vendors
+              {showOnlyOpen && (
+                <div style={{ 
+                  fontSize: '11px', 
+                  color: '#C80B41', 
+                  fontWeight: '500',
+                  marginTop: '2px'
+                }}>
+                  (Open now only)
+                </div>
+              )}
             </div>
 
             {/* Food Type Filters */}
