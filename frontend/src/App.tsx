@@ -1243,11 +1243,6 @@ function MapDisplay() {
 
   // Helper function to filter vendors by area
   const filterVendorsByArea = (area: string) => {
-    const areaVendors = vendors.filter(vendor => {
-      const vendorArea = (vendor.area || vendor.location?.area || '').toLowerCase();
-      return vendorArea.includes(area.toLowerCase());
-    });
-    
     // Apply area filter on top of existing filters
     const currentFiltered = applyFilters(vendors);
     const areaFiltered = currentFiltered.filter(vendor => {
@@ -1559,17 +1554,17 @@ function MapDisplay() {
         <button
           onClick={() => setShowFilters(!showFilters)}
           style={{
-            padding: '8px 16px',
+            padding: window.innerWidth <= 768 ? '4px 10px' : '8px 16px',
             backgroundColor: 'white',
             border: '2px solid #C80B41',
             borderRadius: '20px',
             cursor: 'pointer',
-            fontSize: '14px',
+            fontSize: window.innerWidth <= 768 ? '10px' : '14px',
             fontWeight: '500',
             color: '#C80B41',
             display: 'flex',
             alignItems: 'center',
-            gap: '8px',
+            gap: window.innerWidth <= 768 ? '4px' : '8px',
             boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
             transition: 'all 0.2s',
             pointerEvents: 'auto',
@@ -1613,17 +1608,17 @@ function MapDisplay() {
             }
           }}
           style={{
-            padding: '8px 16px',
+            padding: window.innerWidth <= 768 ? '4px 10px' : '8px 16px',
             backgroundColor: showOnlyOpen ? '#C80B41' : 'white',
             border: '2px solid #C80B41',
             borderRadius: '20px',
             cursor: 'pointer',
-            fontSize: '14px',
+            fontSize: window.innerWidth <= 768 ? '10px' : '14px',
             fontWeight: '500',
             color: showOnlyOpen ? 'white' : '#C80B41',
             display: 'flex',
             alignItems: 'center',
-            gap: '8px',
+            gap: window.innerWidth <= 768 ? '4px' : '8px',
             boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
             transition: 'all 0.2s',
             pointerEvents: 'auto',
