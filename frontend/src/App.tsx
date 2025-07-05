@@ -2038,6 +2038,87 @@ function MapDisplay() {
               )}
             </div>
 
+            {/* Report Button */}
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'center',
+              marginBottom: '20px'
+            }}>
+              <button
+                onClick={() => {
+                  const vendorCoords = getVendorCoordinates(selectedVendor);
+                  const reportData = {
+                    vendorName: selectedVendor.name || 'Unknown Vendor',
+                    vendorId: selectedVendor._id,
+                    vendorLocation: vendorCoords ? `${vendorCoords.latitude}, ${vendorCoords.longitude}` : 'Location not available',
+                    vendorArea: selectedVendor.area || selectedVendor.location?.area || 'Area not specified',
+                    userLocation: userLocation ? `${userLocation.latitude}, ${userLocation.longitude}` : 'User location not available',
+                    reportTime: new Date().toISOString(),
+                    subject: `Wrong Location Report - ${selectedVendor.name || 'Unknown Vendor'}`
+                  };
+
+                  // Create form data for Web3Forms
+                  const formData = new FormData();
+                  formData.append('access_key', 'd003bcfb-91bc-44d0-8347-1259bbc5158f'); // Replace with actual access key
+                  formData.append('subject', reportData.subject);
+                  formData.append('from_name', 'LaariKhojo User');
+                  formData.append('message', `
+Vendor Location Report
+
+Vendor Name: ${reportData.vendorName}
+Vendor ID: ${reportData.vendorId}
+Vendor Location: ${reportData.vendorLocation}
+Vendor Area: ${reportData.vendorArea}
+User Location: ${reportData.userLocation}
+Report Time: ${new Date(reportData.reportTime).toLocaleString()}
+
+The user reports that this vendor is not present at the specified location.
+                  `.trim());
+
+                  // Submit to Web3Forms
+                  fetch('https://api.web3forms.com/submit', {
+                    method: 'POST',
+                    body: formData
+                  })
+                  .then(response => response.json())
+                  .then(data => {
+                    if (data.success) {
+                      alert('Thank you for reporting! We will investigate this location issue.');
+                    } else {
+                      alert('Failed to submit report. Please try again.');
+                    }
+                  })
+                  .catch(error => {
+                    console.error('Error submitting report:', error);
+                    alert('Failed to submit report. Please try again.');
+                  });
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '8px 16px',
+                  backgroundColor: '#dc3545',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontWeight: '500',
+                  fontSize: '12px',
+                  cursor: 'pointer',
+                  transition: 'background-color 0.2s',
+                  justifyContent: 'center'
+                }}
+                onMouseEnter={(e) => {
+                  (e.target as HTMLButtonElement).style.backgroundColor = '#c82333';
+                }}
+                onMouseLeave={(e) => {
+                  (e.target as HTMLButtonElement).style.backgroundColor = '#dc3545';
+                }}
+              >
+                ⚠️ Report Wrong Location
+              </button>
+            </div>
+
             {/* Contact Number */}
             <div style={{ 
               marginBottom: '16px', 
