@@ -645,6 +645,143 @@ const MapPreview: React.FC<MapPreviewProps> = ({ vendors = [] }) => {
                 )}
               </div>
 
+              {/* Report Button */}
+              <div style={{ 
+                display: 'flex', 
+                justifyContent: 'center',
+                marginBottom: '20px'
+              }}>
+                <button
+                  onClick={() => {
+                    const extractCoordinates = (mapsLink: string) => {
+                      try {
+                        console.log("Attempting to extract coordinates from:", mapsLink);
+
+                        // Prefer !3d...!4d... pattern (actual place coordinates)
+                        let match = mapsLink.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/);
+                        if (match) {
+                          const coords = {
+                            latitude: parseFloat(match[1]),
+                            longitude: parseFloat(match[2]),
+                          };
+                          console.log("Extracted coordinates from !3d...!4d...:", coords);
+                          return coords;
+                        }
+
+                        // Fallback to @lat,lng
+                        match = mapsLink.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+                        if (match) {
+                          const coords = {
+                            latitude: parseFloat(match[1]),
+                            longitude: parseFloat(match[2]),
+                          };
+                          console.log("Extracted coordinates from @lat,lng:", coords);
+                          return coords;
+                        }
+
+                        // Fallback to place/@lat,lng
+                        match = mapsLink.match(/place\/.*\/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+                        if (match) {
+                          const coords = {
+                            latitude: parseFloat(match[1]),
+                            longitude: parseFloat(match[2]),
+                          };
+                          console.log("Extracted coordinates from place/@lat,lng:", coords);
+                          return coords;
+                        }
+
+                        // Fallback to q=lat,lng
+                        match = mapsLink.match(/q=(-?\d+\.\d+),(-?\d+\.\d+)/);
+                        if (match) {
+                          const coords = {
+                            latitude: parseFloat(match[1]),
+                            longitude: parseFloat(match[2]),
+                          };
+                          console.log("Extracted coordinates from q=lat,lng:", coords);
+                          return coords;
+                        }
+
+                        console.error("No coordinates found in URL");
+                        return null;
+                      } catch (error) {
+                        console.error("Error extracting coordinates:", error);
+                        return null;
+                      }
+                    };
+
+                    const vendorCoords = extractCoordinates(selectedVendor.mapsLink);
+                    const reportData = {
+                      vendorName: selectedVendor.name || 'Unknown Vendor',
+                      vendorId: selectedVendor._id,
+                      vendorLocation: vendorCoords ? `${vendorCoords.latitude}, ${vendorCoords.longitude}` : 'Location not available',
+                      vendorArea: 'Area not specified',
+                      userLocation: 'User location not available',
+                      reportTime: new Date().toISOString(),
+                      subject: `Wrong Location Report - ${selectedVendor.name || 'Unknown Vendor'}`
+                    };
+
+                    // Create form data for Web3Forms
+                    const formData = new FormData();
+                    formData.append('access_key', 'd003bcfb-91bc-44d0-8347-1259bbc5158f');
+                    formData.append('subject', reportData.subject);
+                    formData.append('from_name', 'LaariKhojo User');
+                    formData.append('message', `
+Vendor Location Report
+
+Vendor Name: ${reportData.vendorName}
+Vendor ID: ${reportData.vendorId}
+Vendor Location: ${reportData.vendorLocation}
+Vendor Area: ${reportData.vendorArea}
+User Location: ${reportData.userLocation}
+Report Time: ${new Date(reportData.reportTime).toLocaleString()}
+
+The user reports that this vendor is not present at the specified location.
+                    `.trim());
+
+                    // Submit to Web3Forms
+                    fetch('https://api.web3forms.com/submit', {
+                      method: 'POST',
+                      body: formData
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                      if (data.success) {
+                        alert('Thank you for reporting! We will investigate this location issue.');
+                      } else {
+                        alert('Failed to submit report. Please try again.');
+                      }
+                    })
+                    .catch(error => {
+                      console.error('Error submitting report:', error);
+                      alert('Failed to submit report. Please try again.');
+                    });
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '8px 16px',
+                    backgroundColor: '#dc3545',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontWeight: '500',
+                    fontSize: '12px',
+                    cursor: 'pointer',
+                    transition: 'background-color 0.2s',
+                    justifyContent: 'center'
+                  }}
+                  onMouseEnter={(e) => {
+                    (e.target as HTMLButtonElement).style.backgroundColor = '#c82333';
+                  }}
+                  onMouseLeave={(e) => {
+                    (e.target as HTMLButtonElement).style.backgroundColor = '#dc3545';
+                  }}
+                >
+                  ⚠️ Report Wrong Location
+                </button>
+              </div>
+
               {/* Contact Number */}
               <div style={{ 
                 marginBottom: '16px', 
