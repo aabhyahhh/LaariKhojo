@@ -47,6 +47,7 @@ interface Vendor {
 // Define food categories
 const FOOD_CATEGORIES = [
   'Chaat',
+  'Pani Puri',
   'Juices',
   'Tea/coffee',
   'Snacks (Samosa, Vada Pav, etc.)',
@@ -54,7 +55,6 @@ const FOOD_CATEGORIES = [
   'Gujju Snacks',
   'PavBhaji',
   'Punjabi (Parathe, Lassi, etc)',
-  'Paan',
   'Korean',
   'Chinese',
   'South Indian',
@@ -216,18 +216,18 @@ function MapDisplay() {
     return filteredVendors.filter(vendor => {
       // Check food type filter
       const foodTypeMatch = activeFilters.foodTypes.length === 0 || 
-        activeFilters.foodTypes.includes(vendor.foodType || 'none');
+        activeFilters.foodTypes.includes((vendor.foodType || 'none').toLowerCase().trim());
 
       // Check category filter - use the category field that's now set by normalizeVendor
       const categoryMatch = activeFilters.categories.length === 0 || 
         (vendor.category && vendor.category.some((cat: string) => activeFilters.categories.includes(cat)));
 
-      // Debug: Log vendor filtering details
-      if (activeFilters.categories.length > 0) {
+      // Debug: Log vendor filtering details for food type filters
+      if (activeFilters.foodTypes.length > 0) {
         console.log(`Vendor ${vendor.name}:`, {
-          categories: vendor.category,
-          categoryMatch,
+          foodType: vendor.foodType,
           foodTypeMatch,
+          categoryMatch,
           passes: foodTypeMatch && categoryMatch
         });
       }
@@ -238,16 +238,35 @@ function MapDisplay() {
 
   // Handle filter changes
   const handleFilterChange = (filterType: 'foodTypes' | 'categories', value: string) => {
+    console.log('Filter change triggered:', { filterType, value });
+    
     setActiveFilters(prev => {
-      const currentFilters = prev[filterType];
-      const newFilters = currentFilters.includes(value)
-        ? currentFilters.filter(item => item !== value)
-        : [...currentFilters, value];
+      let newFilters: string[];
+      
+      if (filterType === 'foodTypes') {
+        // For food types: only one can be selected at a time (radio button behavior)
+        const currentFoodType = prev.foodTypes[0]; // Get the currently selected food type
+        if (currentFoodType === value) {
+          // If clicking the same food type, deselect it
+          newFilters = [];
+        } else {
+          // Select the new food type (replace any existing selection)
+          newFilters = [value];
+        }
+      } else {
+        // For categories: multiple can be selected (checkbox behavior)
+        const currentFilters = prev[filterType];
+        newFilters = currentFilters.includes(value)
+          ? currentFilters.filter(item => item !== value)
+          : [...currentFilters, value];
+      }
 
       const updatedFilters = {
         ...prev,
         [filterType]: newFilters
       };
+
+      console.log('Updated filters:', updatedFilters);
 
       // Apply filters immediately
       const filtered = applyFilters(vendors);
@@ -290,9 +309,14 @@ function MapDisplay() {
   };
 
   const getOperatingStatus = (operatingHours?: OperatingHours) => {
-    if (!operatingHours || !operatingHours.openTime || !operatingHours.closeTime || !operatingHours.days || operatingHours.days.length === 0) {
+    if (!operatingHours || !operatingHours.openTime || !operatingHours.closeTime) {
       return { status: 'Hours Not Specified', color: '#888' };
     }
+
+    // If days is missing or empty, assume all days
+    const days = Array.isArray(operatingHours.days) && operatingHours.days.length > 0
+      ? operatingHours.days
+      : [0,1,2,3,4,5,6];
 
     const now = new Date();
     const currentDay = now.getDay(); // 0 = Sunday, 6 = Saturday
@@ -307,15 +331,15 @@ function MapDisplay() {
     if (closeTimeInMinutes < openTimeInMinutes) {
       // Overnight: openTime (e.g., 19:00) to 23:59 today, and 00:00 to closeTime tomorrow
       if (
-        (currentMinutes >= openTimeInMinutes && operatingHours.days.includes(currentDay)) ||
-        (currentMinutes <= closeTimeInMinutes && operatingHours.days.includes(yesterdayDay))
+        (currentMinutes >= openTimeInMinutes && days.includes(currentDay)) ||
+        (currentMinutes <= closeTimeInMinutes && days.includes(yesterdayDay))
       ) {
         isOpen = true;
       }
     }
     // Case 2: Same-day schedule
     else {
-      if (currentMinutes >= openTimeInMinutes && currentMinutes <= closeTimeInMinutes && operatingHours.days.includes(currentDay)) {
+      if (currentMinutes >= openTimeInMinutes && currentMinutes <= closeTimeInMinutes && days.includes(currentDay)) {
         isOpen = true;
       }
     }
@@ -1044,9 +1068,17 @@ function MapDisplay() {
       if (activeFilters.foodTypes.length > 0 || activeFilters.categories.length > 0 || showOnlyOpen) {
         const filtered = applyFilters(vendors);
         setFilteredVendors(filtered);
+        console.log('Filters applied:', {
+          foodTypes: activeFilters.foodTypes,
+          categories: activeFilters.categories,
+          showOnlyOpen,
+          filteredCount: filtered.length,
+          totalVendors: vendors.length
+        });
       } else {
         // No filters active, show all vendors
         setFilteredVendors([]);
+        console.log('No filters active, showing all vendors');
       }
     }
   }, [vendors, activeFilters, showOnlyOpen]);
