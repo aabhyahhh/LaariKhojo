@@ -14,6 +14,7 @@ export interface Vendor {
   foodType?: 'veg' | 'non-veg' | 'swaminarayan' | 'jain' | 'none';
   profilePicture?: string;
   bestDishes?: Array<{ name: string; price?: number; menuLink?: string }>;
+  category?: string[]; // Add category field for food categories
 }
 
 export interface ApiResponse<T> {
@@ -119,22 +120,87 @@ export const api = {
   // Add other API methods as needed
 };
 
+// Helper function to derive categories from vendor data
+function deriveVendorCategories(vendor: any): string[] {
+  const categories: string[] = [];
+  
+  // Check if vendor has bestDishes and derive categories from dish names
+  if (Array.isArray(vendor.bestDishes) && vendor.bestDishes.length > 0) {
+    const dishNames = vendor.bestDishes.map((dish: any) => dish.name?.toLowerCase() || '').join(' ');
+    
+    // Map dish names to categories
+    if (dishNames.includes('chaat') || dishNames.includes('pani puri') || dishNames.includes('bhel puri') || dishNames.includes('dahi puri')) {
+      categories.push('Chaat');
+    }
+    if (dishNames.includes('juice') || dishNames.includes('lassi') || dishNames.includes('milkshake') || dishNames.includes('smoothie')) {
+      categories.push('Juices');
+    }
+    if (dishNames.includes('tea') || dishNames.includes('coffee') || dishNames.includes('chai')) {
+      categories.push('Tea/coffee');
+    }
+    if (dishNames.includes('samosa') || dishNames.includes('vada pav') || dishNames.includes('pakora') || dishNames.includes('kebab')) {
+      categories.push('Snacks (Samosa, Vada Pav, etc.)');
+    }
+    if (dishNames.includes('dessert') || dishNames.includes('gulab jamun') || dishNames.includes('rasgulla') || dishNames.includes('ice cream')) {
+      categories.push('Dessert');
+    }
+    if (dishNames.includes('dhokla') || dishNames.includes('khandvi') || dishNames.includes('thepla') || dishNames.includes('fafda')) {
+      categories.push('Gujju Snacks');
+    }
+    if (dishNames.includes('pav bhaji') || dishNames.includes('pavbhaji')) {
+      categories.push('PavBhaji');
+    }
+    if (dishNames.includes('paratha') || dishNames.includes('parathe') || dishNames.includes('lassi') || dishNames.includes('butter chicken')) {
+      categories.push('Punjabi (Parathe, Lassi, etc)');
+    }
+    if (dishNames.includes('paan') || dishNames.includes('betel')) {
+      categories.push('Paan');
+    }
+    if (dishNames.includes('korean') || dishNames.includes('kimchi') || dishNames.includes('bibimbap')) {
+      categories.push('Korean');
+    }
+    if (dishNames.includes('chinese') || dishNames.includes('noodles') || dishNames.includes('fried rice') || dishNames.includes('manchurian')) {
+      categories.push('Chinese');
+    }
+    if (dishNames.includes('dosa') || dishNames.includes('idli') || dishNames.includes('sambar') || dishNames.includes('vada')) {
+      categories.push('South Indian');
+    }
+  }
+  
+  // If no categories found, add "Other"
+  if (categories.length === 0) {
+    categories.push('Other');
+  }
+  
+  return categories;
+}
+
 // Utility to ensure latitude/longitude fields are present
 export function normalizeVendor(vendor: any): Vendor & { latitude?: number; longitude?: number } {
+  let normalizedVendor: any = { ...vendor };
+  
+  // Derive categories from vendor data
+  normalizedVendor.category = deriveVendorCategories(vendor);
+  
+  // Debug: Log categories for vendors with bestDishes
+  if (Array.isArray(vendor.bestDishes) && vendor.bestDishes.length > 0) {
+    console.log(`Vendor ${vendor.name}: Categories derived:`, normalizedVendor.category);
+  }
+  
   // If latitude/longitude already present, return as is
   if (typeof vendor.latitude === 'number' && typeof vendor.longitude === 'number') {
-    return vendor;
+    return normalizedVendor;
   }
   // If location.coordinates exists, map to lat/lng
   if (vendor.location && Array.isArray(vendor.location.coordinates) && vendor.location.coordinates.length === 2) {
     return {
-      ...vendor,
+      ...normalizedVendor,
       latitude: vendor.location.coordinates[1],
       longitude: vendor.location.coordinates[0],
     };
   }
   // Otherwise, return as is
-  return vendor;
+  return normalizedVendor;
 }
 
 export default api; 
