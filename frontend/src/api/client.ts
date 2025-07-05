@@ -126,11 +126,18 @@ function deriveVendorCategories(vendor: any): string[] {
   
   // Check if vendor has bestDishes and derive categories from dish names
   if (Array.isArray(vendor.bestDishes) && vendor.bestDishes.length > 0) {
-    const dishNames = vendor.bestDishes.map((dish: any) => dish.name?.toLowerCase() || '').join(' ');
+    // Lowercase and trim all dish names
+    const dishNames = vendor.bestDishes
+      .map((dish: any) => (dish.name || '').toLowerCase().trim())
+      .join(' ');
     
     // Map dish names to categories
     if (dishNames.includes('chaat') || dishNames.includes('pani puri') || dishNames.includes('bhel puri') || dishNames.includes('dahi puri')) {
       categories.push('Chaat');
+    }
+    // Add Pani Puri as a separate category
+    if (dishNames.includes('pani puri')) {
+      categories.push('Pani Puri');
     }
     if (dishNames.includes('juice') || dishNames.includes('lassi') || dishNames.includes('milkshake') || dishNames.includes('smoothie')) {
       categories.push('Juices');
@@ -153,10 +160,8 @@ function deriveVendorCategories(vendor: any): string[] {
     if (dishNames.includes('paratha') || dishNames.includes('parathe') || dishNames.includes('lassi') || dishNames.includes('butter chicken')) {
       categories.push('Punjabi (Parathe, Lassi, etc)');
     }
-    if (dishNames.includes('paan') || dishNames.includes('betel')) {
-      categories.push('Paan');
-    }
-    if (dishNames.includes('korean') || dishNames.includes('kimchi') || dishNames.includes('bibimbap')) {
+    // Improved Korean matching
+    if (dishNames.includes('korean') || dishNames.includes('kimchi') || dishNames.includes('bibimbap') || dishNames.includes('bbq')) {
       categories.push('Korean');
     }
     if (dishNames.includes('chinese') || dishNames.includes('noodles') || dishNames.includes('fried rice') || dishNames.includes('manchurian')) {

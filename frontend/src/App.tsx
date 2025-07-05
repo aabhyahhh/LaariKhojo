@@ -47,6 +47,7 @@ interface Vendor {
 // Define food categories
 const FOOD_CATEGORIES = [
   'Chaat',
+  'Pani Puri',
   'Juices',
   'Tea/coffee',
   'Snacks (Samosa, Vada Pav, etc.)',
@@ -54,7 +55,6 @@ const FOOD_CATEGORIES = [
   'Gujju Snacks',
   'PavBhaji',
   'Punjabi (Parathe, Lassi, etc)',
-  'Paan',
   'Korean',
   'Chinese',
   'South Indian',
