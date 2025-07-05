@@ -179,13 +179,23 @@ function deriveVendorCategories(vendor: any): string[] {
 export function normalizeVendor(vendor: any): Vendor & { latitude?: number; longitude?: number } {
   let normalizedVendor: any = { ...vendor };
   
+  // Ensure foodType is properly set and normalized
+  if (!normalizedVendor.foodType || normalizedVendor.foodType === '') {
+    normalizedVendor.foodType = 'none';
+  } else {
+    let ft = normalizedVendor.foodType.toLowerCase().trim();
+    if (ft === 'nonveg') ft = 'non-veg';
+    normalizedVendor.foodType = ft;
+  }
+  
   // Derive categories from vendor data
   normalizedVendor.category = deriveVendorCategories(vendor);
   
-  // Debug: Log categories for vendors with bestDishes
-  if (Array.isArray(vendor.bestDishes) && vendor.bestDishes.length > 0) {
-    console.log(`Vendor ${vendor.name}: Categories derived:`, normalizedVendor.category);
-  }
+  // Debug: Log foodType and categories for vendors
+  console.log(`Vendor ${vendor.name}:`, {
+    foodType: normalizedVendor.foodType,
+    categories: normalizedVendor.category
+  });
   
   // If latitude/longitude already present, return as is
   if (typeof vendor.latitude === 'number' && typeof vendor.longitude === 'number') {
