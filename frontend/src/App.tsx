@@ -39,13 +39,128 @@ interface Vendor {
   bestDishes?: Array<{ name: string; price?: number; menuLink?: string }>;
   latitude?: number;
   longitude?: number;
+  area?: string; // Add area field for vendor location
+  location?: { area?: string; coordinates?: number[] }; // Add location field for vendor location
+  category?: string[]; // Add category field for food categories
 }
+
+// Define food categories
+const FOOD_CATEGORIES = [
+  'Chaat',
+  'Juices',
+  'Tea/coffee',
+  'Snacks (Samosa, Vada Pav, etc.)',
+  'Dessert',
+  'Gujju Snacks',
+  'PavBhaji',
+  'Punjabi (Parathe, Lassi, etc)',
+  'Paan',
+  'Korean',
+  'Chinese',
+  'South Indian',
+  'Other'
+];
+
+const FOOD_TYPES = ['veg', 'non-veg', 'swaminarayan', 'jain'];
+
+// Filter interface
+interface FilterState {
+  foodTypes: string[];
+  categories: string[];
+}
+
+// Define area boundaries for Ahmedabad and Gandhinagar localities
+const AREA_BOUNDARIES: { [key: string]: { lat: number; lng: number; zoom: number } } = {
+  // Ahmedabad
+  'navrangpura': { lat: 23.0425, lng: 72.5586, zoom: 15 },
+  'ellis bridge': { lat: 23.0258, lng: 72.5714, zoom: 15 },
+  'paldi': { lat: 23.0120, lng: 72.5597, zoom: 15 },
+  'maninagar': { lat: 22.9957, lng: 72.6031, zoom: 15 },
+  'vastrapur': { lat: 23.0406, lng: 72.5151, zoom: 15 },
+  'satellite': { lat: 23.0307, lng: 72.5151, zoom: 15 },
+  'bopal': { lat: 23.0300, lng: 72.4647, zoom: 14 },
+  'bodakdev': { lat: 23.0587, lng: 72.5072, zoom: 15 },
+  'thaltej': { lat: 23.0702, lng: 72.5077, zoom: 15 },
+  'gota': { lat: 23.1023, lng: 72.5417, zoom: 14 },
+  'chandkheda': { lat: 23.1122, lng: 72.5797, zoom: 14 },
+  'motera': { lat: 23.1046, lng: 72.5952, zoom: 15 },
+  'sabarmati': { lat: 23.0736, lng: 72.5802, zoom: 15 },
+  'naranpura': { lat: 23.0680, lng: 72.5617, zoom: 15 },
+  'memnagar': { lat: 23.0626, lng: 72.5462, zoom: 15 },
+  'ambawadi': { lat: 23.0225, lng: 72.5487, zoom: 15 },
+  'vasna': { lat: 23.0067, lng: 72.5462, zoom: 15 },
+  'jodhpur': { lat: 23.0262, lng: 72.5151, zoom: 15 },
+  'prahlad nagar': { lat: 23.0225, lng: 72.5017, zoom: 15 },
+  'shyamal': { lat: 23.0250, lng: 72.5300, zoom: 15 },
+  'anandnagar': { lat: 23.0275, lng: 72.5400, zoom: 15 },
+  'gheekanta': { lat: 23.0300, lng: 72.5800, zoom: 15 },
+  'kalupur': { lat: 23.0286, lng: 72.6029, zoom: 15 },
+  'saraspur': { lat: 23.0380, lng: 72.6130, zoom: 15 },
+  'asara': { lat: 23.0400, lng: 72.6000, zoom: 15 },
+  'naroda': { lat: 23.0896, lng: 72.6677, zoom: 14 },
+  'odhav': { lat: 23.0330, lng: 72.6690, zoom: 14 },
+  'vatva': { lat: 22.9580, lng: 72.6420, zoom: 14 },
+  'iscon': { lat: 23.0300, lng: 72.4950, zoom: 15 },
+  'sarkhej': { lat: 22.9910, lng: 72.5010, zoom: 14 },
+  'juhapura': { lat: 23.0080, lng: 72.5240, zoom: 14 },
+  'vastral': { lat: 23.0330, lng: 72.6850, zoom: 14 },
+  'nikol': { lat: 23.0450, lng: 72.6700, zoom: 14 },
+  'bapunagar': { lat: 23.0330, lng: 72.6250, zoom: 15 },
+  'amraiwadi': { lat: 23.0130, lng: 72.6350, zoom: 15 },
+  'ranip': { lat: 23.0800, lng: 72.5700, zoom: 15 },
+  'gandhinagar': { lat: 23.2230, lng: 72.6500, zoom: 13 },
+  // Gandhinagar
+  'sector 1': { lat: 23.2230, lng: 72.6500, zoom: 15 },
+  'sector 2': { lat: 23.2250, lng: 72.6520, zoom: 15 },
+  'sector 3': { lat: 23.2270, lng: 72.6540, zoom: 15 },
+  'sector 4': { lat: 23.2290, lng: 72.6560, zoom: 15 },
+  'sector 5': { lat: 23.2310, lng: 72.6580, zoom: 15 },
+  'sector 6': { lat: 23.2330, lng: 72.6600, zoom: 15 },
+  'sector 7': { lat: 23.2350, lng: 72.6620, zoom: 15 },
+  'sector 8': { lat: 23.2370, lng: 72.6640, zoom: 15 },
+  'sector 9': { lat: 23.2390, lng: 72.6660, zoom: 15 },
+  'sector 10': { lat: 23.2410, lng: 72.6680, zoom: 15 },
+  'sector 11': { lat: 23.2430, lng: 72.6700, zoom: 15 },
+  'sector 12': { lat: 23.2450, lng: 72.6720, zoom: 15 },
+  'sector 13': { lat: 23.2470, lng: 72.6740, zoom: 15 },
+  'sector 14': { lat: 23.2490, lng: 72.6760, zoom: 15 },
+  'sector 15': { lat: 23.2510, lng: 72.6780, zoom: 15 },
+  'sector 16': { lat: 23.2530, lng: 72.6800, zoom: 15 },
+  'sector 17': { lat: 23.2550, lng: 72.6820, zoom: 15 },
+  'sector 18': { lat: 23.2570, lng: 72.6840, zoom: 15 },
+  'sector 19': { lat: 23.2590, lng: 72.6860, zoom: 15 },
+  'sector 20': { lat: 23.2610, lng: 72.6880, zoom: 15 },
+  'sector 21': { lat: 23.2630, lng: 72.6900, zoom: 15 },
+  'sector 22': { lat: 23.2650, lng: 72.6920, zoom: 15 },
+  'sector 23': { lat: 23.2670, lng: 72.6940, zoom: 15 },
+  'sector 24': { lat: 23.2690, lng: 72.6960, zoom: 15 },
+  'sector 25': { lat: 23.2710, lng: 72.6980, zoom: 15 },
+  'sector 26': { lat: 23.2730, lng: 72.7000, zoom: 15 },
+  'sector 27': { lat: 23.2750, lng: 72.7020, zoom: 15 },
+  'sector 28': { lat: 23.2770, lng: 72.7040, zoom: 15 },
+  'sector 29': { lat: 23.2790, lng: 72.7060, zoom: 15 },
+  'sector 30': { lat: 23.2810, lng: 72.7080, zoom: 15 },
+  'infocity': { lat: 23.2040, lng: 72.6369, zoom: 15 },
+  'gift city': { lat: 23.1568, lng: 72.6835, zoom: 15 },
+  'kudasan': { lat: 23.2000, lng: 72.6500, zoom: 15 },
+  'chiloda': { lat: 23.2500, lng: 72.7000, zoom: 15 },
+  'sargasan': { lat: 23.2100, lng: 72.6200, zoom: 15 },
+  'adraj mota': { lat: 23.3000, lng: 72.7000, zoom: 15 },
+  'randesan': { lat: 23.2200, lng: 72.7100, zoom: 15 },
+  'vavol': { lat: 23.2300, lng: 72.7200, zoom: 15 },
+  'pethapur': { lat: 23.2800, lng: 72.7300, zoom: 15 },
+  'kolavada': { lat: 23.2900, lng: 72.7400, zoom: 15 },
+  'zundal': { lat: 23.1800, lng: 72.6700, zoom: 15 },
+  'chhatral': { lat: 23.3300, lng: 72.7800, zoom: 15 },
+  // Add more localities as needed
+};
 
 function MapDisplay() {
   const mapRef = useRef<L.Map | null>(null);
   const markersRef = useRef<{ [key: string]: L.Marker }>({});
   const userLocationMarkerRef = useRef<L.Marker | null>(null);
   const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [filteredVendors, setFilteredVendors] = useState<Vendor[]>([]); // Add filtered vendors state
   const [error, setError] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<{
     latitude: number;
@@ -57,7 +172,7 @@ function MapDisplay() {
   const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null);
   const [isVendorCardVisible, setIsVendorCardVisible] = useState<boolean>(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [searchResults, setSearchResults] = useState<Vendor[]>([]);
+  const [searchResults, setSearchResults] = useState<any[]>([]); // Change to any[] to support different result types
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [showError, setShowError] = useState(true);
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -66,7 +181,91 @@ function MapDisplay() {
   const [submitting, setSubmitting] = useState(false);
   const [reviewError, setReviewError] = useState<string | null>(null);
 
+  // Filter states
+  const [activeFilters, setActiveFilters] = useState<FilterState>({
+    foodTypes: [],
+    categories: []
+  });
+  const [showFilters, setShowFilters] = useState(false);
+  const [showOnlyOpen, setShowOnlyOpen] = useState(false);
+
   const navigate = useNavigate();
+
+
+
+  // Filter vendors based on active filters and open status
+  const applyFilters = (vendorList: Vendor[]) => {
+    let filteredVendors = vendorList;
+
+    // Apply open/closed filter first
+    if (showOnlyOpen) {
+      filteredVendors = filteredVendors.filter(vendor => {
+        const { status } = getOperatingStatus(vendor.operatingHours);
+        return status === 'Open Now';
+      });
+    }
+
+    // Apply food type and category filters
+    if (activeFilters.foodTypes.length === 0 && activeFilters.categories.length === 0) {
+      return filteredVendors; // No additional filters applied, return filtered vendors
+    }
+
+    console.log('Applying filters:', activeFilters);
+    console.log('Vendors to filter:', filteredVendors.length);
+
+    return filteredVendors.filter(vendor => {
+      // Check food type filter
+      const foodTypeMatch = activeFilters.foodTypes.length === 0 || 
+        activeFilters.foodTypes.includes(vendor.foodType || 'none');
+
+      // Check category filter - use the category field that's now set by normalizeVendor
+      const categoryMatch = activeFilters.categories.length === 0 || 
+        (vendor.category && vendor.category.some((cat: string) => activeFilters.categories.includes(cat)));
+
+      // Debug: Log vendor filtering details
+      if (activeFilters.categories.length > 0) {
+        console.log(`Vendor ${vendor.name}:`, {
+          categories: vendor.category,
+          categoryMatch,
+          foodTypeMatch,
+          passes: foodTypeMatch && categoryMatch
+        });
+      }
+
+      return foodTypeMatch && categoryMatch;
+    });
+  };
+
+  // Handle filter changes
+  const handleFilterChange = (filterType: 'foodTypes' | 'categories', value: string) => {
+    setActiveFilters(prev => {
+      const currentFilters = prev[filterType];
+      const newFilters = currentFilters.includes(value)
+        ? currentFilters.filter(item => item !== value)
+        : [...currentFilters, value];
+
+      const updatedFilters = {
+        ...prev,
+        [filterType]: newFilters
+      };
+
+      // Apply filters immediately
+      const filtered = applyFilters(vendors);
+      setFilteredVendors(filtered);
+
+      return updatedFilters;
+    });
+  };
+
+  // Clear all filters
+  const clearAllFilters = () => {
+    setActiveFilters({
+      foodTypes: [],
+      categories: []
+    });
+    setShowOnlyOpen(false);
+    setFilteredVendors([]);
+  };
 
   // Helper function to convert time string to minutes from midnight (supports 24-hour and 12-hour AM/PM)
   const convertToMinutes = (timeStr: string): number => {
@@ -391,6 +590,88 @@ function MapDisplay() {
             box-shadow: 0 0 0 0 rgba(0, 128, 255, 0);
           }
         }
+        .vendor-cluster {
+          background: #ff6b6b;
+          border: 2px solid white;
+          border-radius: 50%;
+          color: white;
+          font-weight: bold;
+          text-align: center;
+          line-height: 28px;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        .filter-panel {
+          background: white;
+          border-radius: 8px;
+          padding: 16px;
+          box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+          margin-bottom: 16px;
+        }
+        .filter-section {
+          margin-bottom: 16px;
+        }
+        .filter-section h3 {
+          margin: 0 0 8px 0;
+          font-size: 14px;
+          font-weight: 600;
+          color: #333;
+        }
+        .filter-options {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+        }
+        .filter-chip {
+          padding: 4px 12px;
+          background: #f0f0f0;
+          border: 1px solid #ddd;
+          border-radius: 20px;
+          font-size: 12px;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        .filter-chip:hover {
+          background: #e0e0e0;
+        }
+        .filter-chip.active {
+          background: #007bff;
+          color: white;
+          border-color: #007bff;
+        }
+        .filter-actions {
+          display: flex;
+          gap: 8px;
+          margin-top: 12px;
+        }
+        .filter-button {
+          padding: 6px 12px;
+          border: 1px solid #ddd;
+          background: white;
+          border-radius: 4px;
+          font-size: 12px;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        .filter-button:hover {
+          background: #f5f5f5;
+        }
+        .filter-button.primary {
+          background: #007bff;
+          color: white;
+          border-color: #007bff;
+        }
+        .filter-button.primary:hover {
+          background: #0056b3;
+        }
+        .active-filters-count {
+          display: inline-block;
+          background: #ff6b6b;
+          color: white;
+          border-radius: 10px;
+          padding: 2px 6px;
+          font-size: 10px;
+          margin-left: 4px;
+        }
       `;
       document.head.appendChild(style);
 
@@ -531,13 +812,13 @@ function MapDisplay() {
   };
 
   // Updated updateMapMarkers function to group vendors by location
-  const updateMapMarkers = (vendors: Vendor[]) => {
+  const updateMapMarkers = (vendorsToDisplay: Vendor[]) => {
     if (!mapRef.current || !isMapInitialized) {
       console.log("Map not initialized, skipping marker update");
       return;
     }
 
-    console.log("Updating map markers for vendors:", vendors.length);
+    console.log("Updating map markers for vendors:", vendorsToDisplay.length);
 
     // Clear existing vendor markers
     Object.values(markersRef.current).forEach((marker) => marker.remove());
@@ -547,7 +828,7 @@ function MapDisplay() {
     const locationGroups: { [key: string]: Vendor[] } = {};
     const processedVendors = new Set<string>();
 
-    vendors.forEach((vendor) => {
+    vendorsToDisplay.forEach((vendor) => {
       if (processedVendors.has(vendor._id)) return;
 
       // Get coordinates for this vendor
@@ -747,13 +1028,28 @@ function MapDisplay() {
     }
   }, [isMapInitialized]);
 
-  // Update markers whenever vendors or zoom level changes
+  // Update markers whenever vendors, filtered vendors, or zoom level changes
   useEffect(() => {
     if (isMapInitialized && vendors.length > 0) {
       console.log("Vendors or zoom changed, updating markers...");
-      updateMapMarkers(vendors);
+      // Use filtered vendors if available, otherwise use all vendors
+      const vendorsToShow = filteredVendors.length > 0 ? filteredVendors : vendors;
+      updateMapMarkers(vendorsToShow);
     }
-  }, [vendors, currentZoom, isMapInitialized]);
+  }, [vendors, filteredVendors, currentZoom, isMapInitialized]);
+
+  // Apply filters when vendors are loaded
+  useEffect(() => {
+    if (vendors.length > 0) {
+      if (activeFilters.foodTypes.length > 0 || activeFilters.categories.length > 0 || showOnlyOpen) {
+        const filtered = applyFilters(vendors);
+        setFilteredVendors(filtered);
+      } else {
+        // No filters active, show all vendors
+        setFilteredVendors([]);
+      }
+    }
+  }, [vendors, activeFilters, showOnlyOpen]);
 
   // Add location refresh button
   const refreshUserLocation = () => {
@@ -781,44 +1077,146 @@ function MapDisplay() {
 
   // Add global handler
   (window as any).openVendorCard = (vendorId: string) => {
-    const vendor = vendors.find(v => v._id === vendorId);
+    // First try to find vendor in filtered vendors, then in all vendors
+    const vendor = (filteredVendors.length > 0 ? filteredVendors : vendors).find(v => v._id === vendorId);
     if (vendor) {
       openVendorCard(vendor);
     }
   };
 
-  // Search bar logic
+  // Enhanced search bar logic with area functionality
   useEffect(() => {
     if (searchTerm.trim() === '') {
       setSearchResults([]);
       setShowSuggestions(false);
+      // Don't clear filtered vendors when search is cleared - keep filters active
       return;
     }
-    const results = vendors.filter(vendor =>
-      (vendor.name || '').toLowerCase().includes(searchTerm.toLowerCase())
-    );
-    setSearchResults(results);
-    setShowSuggestions(true);
-  }, [searchTerm, vendors]);
 
-  const handleSearchSelect = (vendor: Vendor) => {
-    setSearchTerm(vendor.name || '');
-    setShowSuggestions(false);
-    // Zoom to vendor and open popup/card
-    let coords = getVendorCoordinates(vendor);
-    if (coords && mapRef.current) {
-      // Use flyTo for smooth transition and center zoom
-      mapRef.current.flyTo([coords.latitude, coords.longitude], 17, {
-        animate: true,
-        duration: 1.5
-      });
-      // Open popup if marker exists
-      const marker = markersRef.current[vendor._id];
-      if (marker) {
-        marker.openPopup();
+    const lowerSearch = searchTerm.toLowerCase();
+    const results: any[] = [];
+    const areaMatches: Array<{
+      type: 'area';
+      name: string;
+      displayName: string;
+      coordinates: { lat: number; lng: number; zoom: number };
+    }> = [];
+
+    // Check for area matches first
+    Object.keys(AREA_BOUNDARIES).forEach(area => {
+      if (area.toLowerCase().includes(lowerSearch)) {
+        areaMatches.push({
+          type: 'area',
+          name: area,
+          displayName: `${area.charAt(0).toUpperCase() + area.slice(1)} Area`,
+          coordinates: AREA_BOUNDARIES[area]
+        });
       }
-      // Open vendor card as well
-      openVendorCard(vendor);
+    });
+
+    // Use filtered vendors if available, otherwise use all vendors
+    const vendorsToSearch = filteredVendors.length > 0 ? filteredVendors : vendors;
+
+    // Filter vendors by name and menu items
+    const vendorResults = vendorsToSearch.filter(vendor => {
+      // Match vendor name
+      if ((vendor.name || '').toLowerCase().includes(lowerSearch)) {
+        return true;
+      }
+      // Match menu items (bestDishes)
+      if (Array.isArray(vendor.bestDishes)) {
+        return vendor.bestDishes.some(dish =>
+          (dish.name || '').toLowerCase().includes(lowerSearch)
+        );
+      }
+      return false;
+    });
+
+    // Filter vendors by area if area is specified
+    if (lowerSearch.length > 2) {
+      const areaVendors = vendorsToSearch.filter(vendor => {
+        const vendorArea = (vendor.area || vendor.location?.area || '').toLowerCase();
+        return vendorArea.includes(lowerSearch);
+      });
+      
+      // Add area-specific vendor results
+      if (areaVendors.length > 0) {
+        results.push({
+          type: 'area-vendors',
+          area: lowerSearch,
+          vendors: areaVendors,
+          displayName: `${areaVendors.length} vendors in ${lowerSearch}`
+        });
+      }
+    }
+
+    // Combine all results: areas first, then area-vendors, then individual vendors
+    const finalResults = [...areaMatches, ...results, ...vendorResults];
+    
+    setSearchResults(finalResults);
+    setShowSuggestions(true);
+  }, [searchTerm, vendors, filteredVendors]);
+
+  // Enhanced search selection handler
+  const handleSearchSelect = (result: any) => {
+    if (result.type === 'area') {
+      // Handle area selection - center map on area
+      setSearchTerm(result.displayName);
+      setShowSuggestions(false);
+      
+      if (mapRef.current) {
+        mapRef.current.flyTo(
+          [result.coordinates.lat, result.coordinates.lng], 
+          result.coordinates.zoom,
+          {
+            animate: true,
+            duration: 1.5
+          }
+        );
+      }
+      
+      // Optionally filter vendors by area
+      filterVendorsByArea(result.name);
+      
+    } else if (result.type === 'area-vendors') {
+      // Handle area-vendors selection - show all vendors in that area
+      setSearchTerm(`Vendors in ${result.area}`);
+      setShowSuggestions(false);
+      
+      // Center map on area and show all vendors
+      const firstVendor = result.vendors[0];
+      if (firstVendor && mapRef.current) {
+        const coords = getVendorCoordinates(firstVendor);
+        if (coords) {
+          mapRef.current.flyTo([coords.latitude, coords.longitude], 14, {
+            animate: true,
+            duration: 1.5
+          });
+        }
+      }
+      
+      // Highlight all vendors in the area
+      highlightAreaVendors(result.vendors);
+      
+    } else {
+      // Handle individual vendor selection (original logic)
+      setSearchTerm(result.name || '');
+      setShowSuggestions(false);
+      
+      let coords = getVendorCoordinates(result);
+      if (coords && mapRef.current) {
+        mapRef.current.flyTo([coords.latitude, coords.longitude], 17, {
+          animate: true,
+          duration: 1.5
+        });
+        
+        // Find the marker - it might be in a group
+        const marker = markersRef.current[result._id];
+        if (marker) {
+          marker.openPopup();
+        }
+        openVendorCard(result);
+      }
     }
   };
 
@@ -841,6 +1239,106 @@ function MapDisplay() {
       };
     }
     return null;
+  };
+
+  // Helper function to filter vendors by area
+  const filterVendorsByArea = (area: string) => {
+    const areaVendors = vendors.filter(vendor => {
+      const vendorArea = (vendor.area || vendor.location?.area || '').toLowerCase();
+      return vendorArea.includes(area.toLowerCase());
+    });
+    
+    // Apply area filter on top of existing filters
+    const currentFiltered = applyFilters(vendors);
+    const areaFiltered = currentFiltered.filter(vendor => {
+      const vendorArea = (vendor.area || vendor.location?.area || '').toLowerCase();
+      return vendorArea.includes(area.toLowerCase());
+    });
+    
+    setFilteredVendors(areaFiltered);
+  };
+
+  // Helper function to highlight area vendors
+  const highlightAreaVendors = (areaVendors: Vendor[]) => {
+    // Close all existing popups
+    Object.values(markersRef.current).forEach(marker => {
+      if (marker) marker.closePopup();
+    });
+    
+    // Open popups for area vendors
+    areaVendors.forEach(vendor => {
+      // Check if vendor has an individual marker
+      const marker = markersRef.current[vendor._id];
+      if (marker) {
+        marker.openPopup();
+      } else {
+        // Vendor might be in a group marker, try to find it
+        Object.entries(markersRef.current).forEach(([key, marker]) => {
+          if (key.startsWith('group_')) {
+            // This is a group marker, we can't easily highlight individual vendors
+            // Just open the group popup
+            marker.openPopup();
+          }
+        });
+      }
+    });
+  };
+
+  // Handle Enter key press for area search
+  const handleSearchKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      const lowerSearch = searchTerm.toLowerCase().trim();
+      
+      // Check if it's an area name
+      const matchedArea = Object.keys(AREA_BOUNDARIES).find(area => 
+        area.toLowerCase() === lowerSearch
+      );
+      
+      if (matchedArea) {
+        // Center map on the area
+        const coordinates = AREA_BOUNDARIES[matchedArea];
+        if (mapRef.current) {
+          mapRef.current.flyTo(
+            [coordinates.lat, coordinates.lng], 
+            coordinates.zoom,
+            {
+              animate: true,
+              duration: 1.5
+            }
+          );
+        }
+        
+        // Filter vendors by area
+        filterVendorsByArea(matchedArea);
+        setShowSuggestions(false);
+      } else {
+        // Try geocoding for unknown areas (optional)
+        geocodeAndCenterMap(searchTerm);
+      }
+    }
+  };
+
+  // Optional: Geocoding function for unknown areas
+  const geocodeAndCenterMap = async (searchTerm: string) => {
+    try {
+      // Using a geocoding service (example with OpenStreetMap Nominatim)
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchTerm)}&limit=1`
+      );
+      const data = await response.json();
+      
+      if (data && data.length > 0) {
+        const result = data[0];
+        if (mapRef.current) {
+          mapRef.current.flyTo([parseFloat(result.lat), parseFloat(result.lon)], 13, {
+            animate: true,
+            duration: 1.5
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Geocoding error:', error);
+    }
   };
 
   // Fetch reviews when vendor card opens
@@ -932,10 +1430,11 @@ function MapDisplay() {
           <div style={{ position: 'relative', width: '100%', maxWidth: '400px' }}>
             <input
               type="text"
-              placeholder="Search for a vendor..."
+              placeholder="Search for a vendor or area..."
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
               onFocus={() => setShowSuggestions(searchResults.length > 0)}
+              onKeyPress={handleSearchKeyPress}
               style={{
                 width: '100%',
                 padding: '12px 16px',
@@ -961,28 +1460,266 @@ function MapDisplay() {
                 overflowY: 'auto',
                 zIndex: 1300,
               }}>
-                {searchResults.map(vendor => (
-                  <div
-                    key={vendor._id}
-                    onClick={() => handleSearchSelect(vendor)}
-                    style={{
-                      padding: '12px 16px',
-                      cursor: 'pointer',
-                      borderBottom: '1px solid #f3f3f3',
-                      fontWeight: 500,
-                      color: '#2c3e50',
-                      background: searchTerm === vendor.name ? '#f5f8ff' : 'white',
-                    }}
-                    onMouseDown={e => e.preventDefault()}
-                  >
-                    {vendor.name}
-                  </div>
-                ))}
+                {searchResults.map((result, index) => {
+                  if (result.type === 'area') {
+                    return (
+                      <div
+                        key={`area-${index}`}
+                        onClick={() => handleSearchSelect(result)}
+                        style={{
+                          padding: '12px 16px',
+                          cursor: 'pointer',
+                          borderBottom: '1px solid #f3f3f3',
+                          fontWeight: 500,
+                          color: '#2c3e50',
+                          background: '#e8f4fd',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                        }}
+                        onMouseDown={e => e.preventDefault()}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center' }}>
+                          <span style={{ marginRight: '8px', fontSize: '16px' }}>📍</span>
+                          <span>{result.displayName}</span>
+                        </div>
+                        <span style={{ fontSize: '12px', color: '#666', fontWeight: '500' }}>Area</span>
+                      </div>
+                    );
+                  } else if (result.type === 'area-vendors') {
+                    return (
+                      <div
+                        key={`area-vendors-${index}`}
+                        onClick={() => handleSearchSelect(result)}
+                        style={{
+                          padding: '12px 16px',
+                          cursor: 'pointer',
+                          borderBottom: '1px solid #f3f3f3',
+                          fontWeight: 500,
+                          color: '#2c3e50',
+                          background: '#fff3cd',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                        }}
+                        onMouseDown={e => e.preventDefault()}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center' }}>
+                          <span style={{ marginRight: '8px', fontSize: '16px' }}>🏪</span>
+                          <span>{result.displayName}</span>
+                        </div>
+                        <span style={{ fontSize: '12px', color: '#666', fontWeight: '500' }}>Area Vendors</span>
+                      </div>
+                    );
+                  } else {
+                    // Individual vendor
+                    return (
+                      <div
+                        key={result._id}
+                        onClick={() => handleSearchSelect(result)}
+                        style={{
+                          padding: '12px 16px',
+                          cursor: 'pointer',
+                          borderBottom: '1px solid #f3f3f3',
+                          fontWeight: 500,
+                          color: '#2c3e50',
+                          background: searchTerm === result.name ? '#f5f8ff' : 'white',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                        }}
+                        onMouseDown={e => e.preventDefault()}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center' }}>
+                          <span style={{ marginRight: '8px', fontSize: '16px' }}>🍽️</span>
+                          <span>{result.name}</span>
+                        </div>
+                        <span style={{ fontSize: '12px', color: '#666', fontWeight: '500' }}>Vendor</span>
+                      </div>
+                    );
+                  }
+                })}
               </div>
             )}
           </div>
         </div>
       </div>
+      
+      {/* Filter Panel */}
+      <div
+        style={{
+          position: 'absolute',
+          top: '100px',
+          left: '20px',
+          zIndex: 1200,
+          width: '300px',
+        }}
+      >
+        {/* Filter Toggle Button */}
+        <button
+          onClick={() => setShowFilters(!showFilters)}
+          style={{
+            padding: '8px 16px',
+            backgroundColor: 'white',
+            border: '2px solid #C80B41',
+            borderRadius: '20px',
+            cursor: 'pointer',
+            fontSize: '14px',
+            fontWeight: '500',
+            color: '#C80B41',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+            transition: 'all 0.2s',
+            pointerEvents: 'auto',
+            marginBottom: '8px',
+          }}
+          onMouseEnter={(e) => {
+            (e.target as HTMLButtonElement).style.backgroundColor = '#fff5f7';
+          }}
+          onMouseLeave={(e) => {
+            (e.target as HTMLButtonElement).style.backgroundColor = 'white';
+          }}
+        >
+          <span>🔍</span>
+          Filters
+          {(activeFilters.foodTypes.length > 0 || activeFilters.categories.length > 0) && (
+            <span className="active-filters-count">
+              {activeFilters.foodTypes.length + activeFilters.categories.length}
+            </span>
+          )}
+        </button>
+
+        {/* What's Open Now Button */}
+        <button
+          onClick={() => {
+            const newShowOnlyOpen = !showOnlyOpen;
+            setShowOnlyOpen(newShowOnlyOpen);
+            
+            if (newShowOnlyOpen) {
+              // Apply open filter immediately
+              const filtered = applyFilters(vendors);
+              setFilteredVendors(filtered);
+            } else {
+              // Clear open filter - show all vendors or apply other active filters
+              if (activeFilters.foodTypes.length === 0 && activeFilters.categories.length === 0) {
+                setFilteredVendors([]); // This will show all vendors in the useEffect
+              } else {
+                // Reapply other active filters
+                const filtered = applyFilters(vendors);
+                setFilteredVendors(filtered);
+              }
+            }
+          }}
+          style={{
+            padding: '8px 16px',
+            backgroundColor: showOnlyOpen ? '#C80B41' : 'white',
+            border: '2px solid #C80B41',
+            borderRadius: '20px',
+            cursor: 'pointer',
+            fontSize: '14px',
+            fontWeight: '500',
+            color: showOnlyOpen ? 'white' : '#C80B41',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+            transition: 'all 0.2s',
+            pointerEvents: 'auto',
+          }}
+          onMouseEnter={(e) => {
+            if (!showOnlyOpen) {
+              (e.target as HTMLButtonElement).style.backgroundColor = '#fff5f7';
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!showOnlyOpen) {
+              (e.target as HTMLButtonElement).style.backgroundColor = 'white';
+            }
+          }}
+        >
+          <span>🕐</span>
+          {showOnlyOpen ? 'Show All' : "What's Open Now"}
+        </button>
+
+        {/* Filter Panel Content */}
+        {showFilters && (
+          <div className="filter-panel" style={{ marginTop: '12px', pointerEvents: 'auto' }}>
+            {/* Vendor Count */}
+            <div style={{ 
+              marginBottom: '16px', 
+              padding: '8px 12px', 
+              backgroundColor: '#f8f9fa', 
+              borderRadius: '6px',
+              fontSize: '12px',
+              color: '#666',
+              textAlign: 'center'
+            }}>
+              Showing {filteredVendors.length > 0 ? filteredVendors.length : vendors.length} of {vendors.length} vendors
+              {showOnlyOpen && (
+                <div style={{ 
+                  fontSize: '11px', 
+                  color: '#C80B41', 
+                  fontWeight: '500',
+                  marginTop: '2px'
+                }}>
+                  (Open now only)
+                </div>
+              )}
+            </div>
+
+            {/* Food Type Filters */}
+            <div className="filter-section">
+              <h3>Food Type</h3>
+              <div className="filter-options">
+                {FOOD_TYPES.map(type => (
+                  <button
+                    key={type}
+                    className={`filter-chip ${activeFilters.foodTypes.includes(type) ? 'active' : ''}`}
+                    onClick={() => handleFilterChange('foodTypes', type)}
+                  >
+                    {type === 'veg' ? '🥬' : type === 'non-veg' ? '🍗' : type === 'swaminarayan' ? '🕉️' : '☸️'} {type}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Category Filters */}
+            <div className="filter-section">
+              <h3>Food Categories</h3>
+              <div className="filter-options">
+                {FOOD_CATEGORIES.map(category => (
+                  <button
+                    key={category}
+                    className={`filter-chip ${activeFilters.categories.includes(category) ? 'active' : ''}`}
+                    onClick={() => handleFilterChange('categories', category)}
+                  >
+                    {category}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Filter Actions */}
+            <div className="filter-actions">
+              <button
+                className="filter-button"
+                onClick={clearAllFilters}
+              >
+                Clear All
+              </button>
+              <button
+                className="filter-button primary"
+                onClick={() => setShowFilters(false)}
+              >
+                Apply
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+      
       {/* Error message covers search bar and can be dismissed */}
       {error && showError && (
         <div
@@ -1299,6 +2036,87 @@ function MapDisplay() {
                   📞 Call
                 </a>
               )}
+            </div>
+
+            {/* Report Button */}
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'center',
+              marginBottom: '20px'
+            }}>
+              <button
+                onClick={() => {
+                  const vendorCoords = getVendorCoordinates(selectedVendor);
+                  const reportData = {
+                    vendorName: selectedVendor.name || 'Unknown Vendor',
+                    vendorId: selectedVendor._id,
+                    vendorLocation: vendorCoords ? `${vendorCoords.latitude}, ${vendorCoords.longitude}` : 'Location not available',
+                    vendorArea: selectedVendor.area || selectedVendor.location?.area || 'Area not specified',
+                    userLocation: userLocation ? `${userLocation.latitude}, ${userLocation.longitude}` : 'User location not available',
+                    reportTime: new Date().toISOString(),
+                    subject: `Wrong Location Report - ${selectedVendor.name || 'Unknown Vendor'}`
+                  };
+
+                  // Create form data for Web3Forms
+                  const formData = new FormData();
+                  formData.append('access_key', 'd003bcfb-91bc-44d0-8347-1259bbc5158f'); // Replace with actual access key
+                  formData.append('subject', reportData.subject);
+                  formData.append('from_name', 'LaariKhojo User');
+                  formData.append('message', `
+Vendor Location Report
+
+Vendor Name: ${reportData.vendorName}
+Vendor ID: ${reportData.vendorId}
+Vendor Location: ${reportData.vendorLocation}
+Vendor Area: ${reportData.vendorArea}
+User Location: ${reportData.userLocation}
+Report Time: ${new Date(reportData.reportTime).toLocaleString()}
+
+The user reports that this vendor is not present at the specified location.
+                  `.trim());
+
+                  // Submit to Web3Forms
+                  fetch('https://api.web3forms.com/submit', {
+                    method: 'POST',
+                    body: formData
+                  })
+                  .then(response => response.json())
+                  .then(data => {
+                    if (data.success) {
+                      alert('Thank you for reporting! We will investigate this location issue.');
+                    } else {
+                      alert('Failed to submit report. Please try again.');
+                    }
+                  })
+                  .catch(error => {
+                    console.error('Error submitting report:', error);
+                    alert('Failed to submit report. Please try again.');
+                  });
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '8px 16px',
+                  backgroundColor: '#dc3545',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontWeight: '500',
+                  fontSize: '12px',
+                  cursor: 'pointer',
+                  transition: 'background-color 0.2s',
+                  justifyContent: 'center'
+                }}
+                onMouseEnter={(e) => {
+                  (e.target as HTMLButtonElement).style.backgroundColor = '#c82333';
+                }}
+                onMouseLeave={(e) => {
+                  (e.target as HTMLButtonElement).style.backgroundColor = '#dc3545';
+                }}
+              >
+                ⚠️ Report Wrong Location
+              </button>
             </div>
 
             {/* Contact Number */}
