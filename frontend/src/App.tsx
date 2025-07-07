@@ -238,41 +238,24 @@ function MapDisplay() {
 
   // Handle filter changes
   const handleFilterChange = (filterType: 'foodTypes' | 'categories', value: string) => {
-    console.log('Filter change triggered:', { filterType, value });
-    
     setActiveFilters(prev => {
-      let newFilters: string[];
-      
+      let newFilters: FilterState;
       if (filterType === 'foodTypes') {
-        // For food types: only one can be selected at a time (radio button behavior)
-        const currentFoodType = prev.foodTypes[0]; // Get the currently selected food type
-        if (currentFoodType === value) {
-          // If clicking the same food type, deselect it
-          newFilters = [];
-        } else {
-          // Select the new food type (replace any existing selection)
-          newFilters = [value];
-        }
+        // Selecting a food type clears categories
+        newFilters = {
+          foodTypes: prev.foodTypes[0] === value ? [] : [value],
+          categories: []
+        };
       } else {
-        // For categories: multiple can be selected (checkbox behavior)
-        const currentFilters = prev[filterType];
-        newFilters = currentFilters.includes(value)
-          ? currentFilters.filter(item => item !== value)
-          : [...currentFilters, value];
+        // Selecting a category clears food types
+        newFilters = {
+          foodTypes: [],
+          categories: prev.categories[0] === value ? [] : [value]
+        };
       }
-
-      const updatedFilters = {
-        ...prev,
-        [filterType]: newFilters
-      };
-
-      console.log('Updated filters:', updatedFilters);
-
-      // Apply filters immediately
       const filtered = applyFilters(vendors);
       setFilteredVendors(filtered);
-
-      return updatedFilters;
+      return newFilters;
     });
   };
 
@@ -1424,7 +1407,7 @@ function MapDisplay() {
           left: '20px',
           zIndex: 1200,
           width: 'calc(100vw - 40px)',
-          maxWidth: '700px',
+          maxWidth: '900px',
           display: 'flex',
           alignItems: 'center',
           gap: '16px',
@@ -1444,7 +1427,7 @@ function MapDisplay() {
         >
           <img src={logo} alt="Laari Logo" style={{ height: '60px', width: 'auto' }} />
         </div>
-        {/* Search Bar */}
+        {/* Search Bar + Buttons Row */}
         <div
           style={{
             flex: 1,
@@ -1452,9 +1435,11 @@ function MapDisplay() {
             display: 'flex',
             alignItems: 'center',
             pointerEvents: 'auto',
+            gap: '0',
           }}
         >
-          <div style={{ position: 'relative', width: '100%', maxWidth: '400px' }}>
+          {/* Search Bar */}
+          <div style={{ position: 'relative', width: '100%', maxWidth: '400px', flex: 1 }}>
             <input
               type="text"
               placeholder="Search for a vendor or area..."
@@ -1569,110 +1554,134 @@ function MapDisplay() {
               </div>
             )}
           </div>
+          {/* Buttons for large screens (right of search bar) */}
+          <div
+            className="searchbar-buttons-desktop"
+            style={{
+              display: 'none',
+              marginLeft: '12px',
+              gap: '8px',
+            }}
+          >
+            {/* Filter Toggle Button */}
+            <button
+              id="filter-toggle-btn"
+              onClick={() => setShowFilters(!showFilters)}
+              style={{
+                padding: '4px 12px',
+                backgroundColor: 'white',
+                border: '2px solid #C80B41',
+                borderRadius: '20px',
+                cursor: 'pointer',
+                fontSize: '13px',
+                fontWeight: '500',
+                color: '#C80B41',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                transition: 'all 0.2s',
+                pointerEvents: 'auto',
+                marginBottom: 0,
+              }}
+              onMouseEnter={(e) => {
+                (e.target as HTMLButtonElement).style.backgroundColor = '#fff5f7';
+              }}
+              onMouseLeave={(e) => {
+                (e.target as HTMLButtonElement).style.backgroundColor = 'white';
+              }}
+            >
+              <span>🔍</span>
+              Filters
+              {(activeFilters.foodTypes.length > 0 || activeFilters.categories.length > 0) && (
+                <span className="active-filters-count">
+                  {activeFilters.foodTypes.length + activeFilters.categories.length}
+                </span>
+              )}
+            </button>
+            {/* What's Open Now Button */}
+            <button
+              onClick={() => {
+                const newShowOnlyOpen = !showOnlyOpen;
+                setShowOnlyOpen(newShowOnlyOpen);
+                if (newShowOnlyOpen) {
+                  const filtered = applyFilters(vendors);
+                  setFilteredVendors(filtered);
+                } else {
+                  if (activeFilters.foodTypes.length === 0 && activeFilters.categories.length === 0) {
+                    setFilteredVendors([]);
+                  } else {
+                    const filtered = applyFilters(vendors);
+                    setFilteredVendors(filtered);
+                  }
+                }
+              }}
+              style={{
+                padding: '4px 12px',
+                backgroundColor: showOnlyOpen ? '#C80B41' : 'white',
+                border: '2px solid #C80B41',
+                borderRadius: '20px',
+                cursor: 'pointer',
+                fontSize: '13px',
+                fontWeight: '500',
+                color: showOnlyOpen ? 'white' : '#C80B41',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                transition: 'all 0.2s',
+                pointerEvents: 'auto',
+                marginBottom: 0,
+              }}
+              onMouseEnter={(e) => {
+                if (!showOnlyOpen) {
+                  (e.target as HTMLButtonElement).style.backgroundColor = '#fff5f7';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!showOnlyOpen) {
+                  (e.target as HTMLButtonElement).style.backgroundColor = 'white';
+                }
+              }}
+            >
+              <span>🕐</span>
+              {showOnlyOpen ? 'Show All' : "What's Open Now"}
+            </button>
+          </div>
         </div>
       </div>
-      
-      {/* Filter Panel */}
-      <div
-        style={{
-          position: 'absolute',
-          top: '100px',
-          left: '20px',
-          zIndex: 1200,
-          width: '300px',
-        }}
-      >
-        {/* Filter Toggle Button */}
-        <button
-          onClick={() => setShowFilters(!showFilters)}
-          style={{
-            padding: window.innerWidth <= 768 ? '4px 10px' : '8px 16px',
-            backgroundColor: 'white',
-            border: '2px solid #C80B41',
-            borderRadius: '20px',
-            cursor: 'pointer',
-            fontSize: window.innerWidth <= 768 ? '10px' : '14px',
-            fontWeight: '500',
-            color: '#C80B41',
-            display: 'flex',
-            alignItems: 'center',
-            gap: window.innerWidth <= 768 ? '4px' : '8px',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-            transition: 'all 0.2s',
-            pointerEvents: 'auto',
-            marginBottom: '8px',
-          }}
-          onMouseEnter={(e) => {
-            (e.target as HTMLButtonElement).style.backgroundColor = '#fff5f7';
-          }}
-          onMouseLeave={(e) => {
-            (e.target as HTMLButtonElement).style.backgroundColor = 'white';
-          }}
-        >
-          <span>🔍</span>
-          Filters
-          {(activeFilters.foodTypes.length > 0 || activeFilters.categories.length > 0) && (
-            <span className="active-filters-count">
-              {activeFilters.foodTypes.length + activeFilters.categories.length}
-            </span>
-          )}
-        </button>
-
-        {/* What's Open Now Button */}
-        <button
-          onClick={() => {
-            const newShowOnlyOpen = !showOnlyOpen;
-            setShowOnlyOpen(newShowOnlyOpen);
-            
-            if (newShowOnlyOpen) {
-              // Apply open filter immediately
-              const filtered = applyFilters(vendors);
-              setFilteredVendors(filtered);
-            } else {
-              // Clear open filter - show all vendors or apply other active filters
-              if (activeFilters.foodTypes.length === 0 && activeFilters.categories.length === 0) {
-                setFilteredVendors([]); // This will show all vendors in the useEffect
-              } else {
-                // Reapply other active filters
-                const filtered = applyFilters(vendors);
-                setFilteredVendors(filtered);
-              }
-            }
-          }}
-          style={{
-            padding: window.innerWidth <= 768 ? '4px 10px' : '8px 16px',
-            backgroundColor: showOnlyOpen ? '#C80B41' : 'white',
-            border: '2px solid #C80B41',
-            borderRadius: '20px',
-            cursor: 'pointer',
-            fontSize: window.innerWidth <= 768 ? '10px' : '14px',
-            fontWeight: '500',
-            color: showOnlyOpen ? 'white' : '#C80B41',
-            display: 'flex',
-            alignItems: 'center',
-            gap: window.innerWidth <= 768 ? '4px' : '8px',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-            transition: 'all 0.2s',
-            pointerEvents: 'auto',
-          }}
-          onMouseEnter={(e) => {
-            if (!showOnlyOpen) {
-              (e.target as HTMLButtonElement).style.backgroundColor = '#fff5f7';
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (!showOnlyOpen) {
-              (e.target as HTMLButtonElement).style.backgroundColor = 'white';
-            }
-          }}
-        >
-          <span>🕐</span>
-          {showOnlyOpen ? 'Show All' : "What's Open Now"}
-        </button>
-
-        {/* Filter Panel Content */}
-        {showFilters && (
-          <div className="filter-panel" style={{ marginTop: '12px', pointerEvents: 'auto' }}>
+      {/* Filter Panel as absolute dropdown/modal */}
+      {showFilters && (
+        <>
+          {/* Overlay to close filter panel when clicking outside */}
+          <div
+            onClick={() => setShowFilters(false)}
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              width: '100vw',
+              height: '100vh',
+              background: 'rgba(0,0,0,0.05)',
+              zIndex: 2001,
+            }}
+          />
+          <div
+            className="filter-panel"
+            style={{
+              position: 'absolute',
+              top: window.innerWidth >= 900 ? 70 : 120,
+              left: window.innerWidth >= 900 ? 420 : 20,
+              width: window.innerWidth >= 900 ? 340 : 300,
+              background: 'white',
+              borderRadius: '8px',
+              padding: '16px',
+              boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
+              zIndex: 2002,
+              marginTop: 0,
+              pointerEvents: 'auto',
+            }}
+          >
             {/* Vendor Count */}
             <div style={{ 
               marginBottom: '16px', 
@@ -1695,7 +1704,6 @@ function MapDisplay() {
                 </div>
               )}
             </div>
-
             {/* Food Type Filters */}
             <div className="filter-section">
               <h3>Food Type</h3>
@@ -1711,7 +1719,6 @@ function MapDisplay() {
                 ))}
               </div>
             </div>
-
             {/* Category Filters */}
             <div className="filter-section">
               <h3>Food Categories</h3>
@@ -1727,7 +1734,6 @@ function MapDisplay() {
                 ))}
               </div>
             </div>
-
             {/* Filter Actions */}
             <div className="filter-actions">
               <button
@@ -1744,7 +1750,115 @@ function MapDisplay() {
               </button>
             </div>
           </div>
-        )}
+        </>
+      )}
+      {/* Buttons for mobile/tablet (below search bar) */}
+      <div
+        className="searchbar-buttons-mobile"
+        style={{
+          position: 'absolute',
+          top: '100px',
+          left: '20px',
+          zIndex: 1200,
+          width: '300px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '8px',
+        }}
+      >
+        {/* Only show on small screens */}
+        <style>{`
+          @media (min-width: 900px) {
+            .searchbar-buttons-mobile { display: none !important; }
+            .searchbar-buttons-desktop { display: flex !important; }
+          }
+          @media (max-width: 899px) {
+            .searchbar-buttons-mobile { display: flex !important; }
+            .searchbar-buttons-desktop { display: none !important; }
+          }
+        `}</style>
+        {/* Filter Toggle Button */}
+        <button
+          onClick={() => setShowFilters(!showFilters)}
+          style={{
+            padding: window.innerWidth <= 768 ? '6px 12px' : '8px 16px',
+            backgroundColor: 'white',
+            border: '2px solid #C80B41',
+            borderRadius: '20px',
+            cursor: 'pointer',
+            fontSize: window.innerWidth <= 768 ? '12px' : '14px',
+            fontWeight: '500',
+            color: '#C80B41',
+            display: 'flex',
+            alignItems: 'center',
+            gap: window.innerWidth <= 768 ? '6px' : '8px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+            transition: 'all 0.2s',
+            pointerEvents: 'auto',
+            marginBottom: '8px',
+          }}
+          onMouseEnter={(e) => {
+            (e.target as HTMLButtonElement).style.backgroundColor = '#fff5f7';
+          }}
+          onMouseLeave={(e) => {
+            (e.target as HTMLButtonElement).style.backgroundColor = 'white';
+          }}
+        >
+          <span>🔍</span>
+          Filters
+          {(activeFilters.foodTypes.length > 0 || activeFilters.categories.length > 0) && (
+            <span className="active-filters-count">
+              {activeFilters.foodTypes.length + activeFilters.categories.length}
+            </span>
+          )}
+        </button>
+        {/* What's Open Now Button */}
+        <button
+          onClick={() => {
+            const newShowOnlyOpen = !showOnlyOpen;
+            setShowOnlyOpen(newShowOnlyOpen);
+            if (newShowOnlyOpen) {
+              const filtered = applyFilters(vendors);
+              setFilteredVendors(filtered);
+            } else {
+              if (activeFilters.foodTypes.length === 0 && activeFilters.categories.length === 0) {
+                setFilteredVendors([]);
+              } else {
+                const filtered = applyFilters(vendors);
+                setFilteredVendors(filtered);
+              }
+            }
+          }}
+          style={{
+            padding: window.innerWidth <= 768 ? '6px 12px' : '8px 16px',
+            backgroundColor: showOnlyOpen ? '#C80B41' : 'white',
+            border: '2px solid #C80B41',
+            borderRadius: '20px',
+            cursor: 'pointer',
+            fontSize: window.innerWidth <= 768 ? '12px' : '14px',
+            fontWeight: '500',
+            color: showOnlyOpen ? 'white' : '#C80B41',
+            display: 'flex',
+            alignItems: 'center',
+            gap: window.innerWidth <= 768 ? '6px' : '8px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+            transition: 'all 0.2s',
+            pointerEvents: 'auto',
+          }}
+          onMouseEnter={(e) => {
+            if (!showOnlyOpen) {
+              (e.target as HTMLButtonElement).style.backgroundColor = '#fff5f7';
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!showOnlyOpen) {
+              (e.target as HTMLButtonElement).style.backgroundColor = 'white';
+            }
+          }}
+        >
+          <span>🕐</span>
+          {showOnlyOpen ? 'Show All' : "What's Open Now"}
+        </button>
       </div>
       
       {/* Error message covers search bar and can be dismissed */}
