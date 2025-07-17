@@ -67,6 +67,9 @@ app.use("/api", authRoutes);
 app.use("/api", webhookRoutes);
 app.use("/api", reviewRoutes);
 
+const adminRoutes = require("./routes/adminRoute");
+app.use("/api/admin", adminRoutes);
+
 app.get("/api/expand-url", async (req, res) => {
   const { url } = req.query;
   if (!url) return res.status(400).json({ error: "No URL provided" });
