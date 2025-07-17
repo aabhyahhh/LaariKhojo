@@ -21,6 +21,8 @@ const uploadVendorImage = [
   upload.single('image'),
   async (req, res) => {
     try {
+      console.log('UPLOAD_VENDOR_IMAGE BODY:', req.body);
+      console.log('UPLOAD_VENDOR_IMAGE FILE:', req.file);
       const { vendorId } = req.body;
       if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
       // Enforce max 20 business images per vendor
@@ -34,6 +36,7 @@ const uploadVendorImage = [
       await image.save();
       res.status(201).json({ message: 'Business image uploaded', image });
     } catch (err) {
+      console.error('UPLOAD_VENDOR_IMAGE ERROR:', err);
       res.status(500).json({ error: err.message });
     }
   }
@@ -44,6 +47,8 @@ const uploadDisplayPicture = [
   upload.single('displayPicture'),
   async (req, res) => {
     try {
+      console.log('UPLOAD_DISPLAY_PICTURE BODY:', req.body);
+      console.log('UPLOAD_DISPLAY_PICTURE FILE:', req.file);
       const { vendorId } = req.body;
       if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
       // Remove old display image if exists
@@ -60,6 +65,7 @@ const uploadDisplayPicture = [
       await image.save();
       res.status(200).json({ message: 'Display picture updated', image });
     } catch (err) {
+      console.error('UPLOAD_DISPLAY_PICTURE ERROR:', err);
       res.status(500).json({ error: err.message });
     }
   }
