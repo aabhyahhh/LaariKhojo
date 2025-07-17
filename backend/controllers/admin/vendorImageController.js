@@ -2,6 +2,11 @@ const multer = require('multer');
 const path = require('path');
 const VendorImage = require('../../models/vendorImageModel');
 const User = require('../../models/userModel');
+const fs = require('fs');
+const vendorImagesDir = path.join(__dirname, '../../public/vendor-images');
+if (!fs.existsSync(vendorImagesDir)) {
+  fs.mkdirSync(vendorImagesDir, { recursive: true });
+}
 
 // Multer storage config for vendor images
 const storage = multer.diskStorage({
