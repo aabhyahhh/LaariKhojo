@@ -12,6 +12,7 @@ import 'leaflet/dist/leaflet.css';
 import './MapPreview.css';
 import laari from '../assets/logo_cropped.png';
 import api, { Review } from '../api/client';
+import { API_URL } from '../api/config';
 
 interface Vendor {
   _id: string;
@@ -48,6 +49,8 @@ const MapPreview: React.FC<MapPreviewProps> = ({ vendors = [] }) => {
   const [reviewForm, setReviewForm] = useState({ name: '', email: '', rating: 0, comment: '' });
   const [submitting, setSubmitting] = useState(false);
   const [reviewError, setReviewError] = useState<string | null>(null);
+  const [displayImage, setDisplayImage] = useState<string | null>(null);
+  const [businessImages, setBusinessImages] = useState<string[]>([]);
 
   // Helper function to convert time string to minutes from midnight (supports 24-hour and 12-hour AM/PM)
   const convertToMinutes = (timeStr: string): number => {
@@ -398,6 +401,25 @@ const MapPreview: React.FC<MapPreviewProps> = ({ vendors = [] }) => {
     }
   }, [isVendorCardVisible, selectedVendor]);
 
+  // Fetch images when a vendor is selected
+  useEffect(() => {
+    if (!selectedVendor) {
+      setDisplayImage(null);
+      setBusinessImages([]);
+      return;
+    }
+    // Fetch display picture
+    fetch(`${API_URL}/api/admin/display-picture/${selectedVendor._id}`)
+      .then(res => res.json())
+      .then(data => setDisplayImage(data.displayPicture || null))
+      .catch(() => setDisplayImage(null));
+    // Fetch business images
+    fetch(`${API_URL}/api/admin/vendor-images/${selectedVendor._id}`)
+      .then(res => res.json())
+      .then(data => setBusinessImages(Array.isArray(data) ? data.map((img: any) => img.imageUrl) : []))
+      .catch(() => setBusinessImages([]));
+  }, [selectedVendor]);
+
   const handleReviewInput = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setReviewForm({ ...reviewForm, [e.target.name]: e.target.value });
   };
@@ -483,9 +505,9 @@ const MapPreview: React.FC<MapPreviewProps> = ({ vendors = [] }) => {
             <div style={{ padding: '20px 16px' }}>
               {/* Profile Picture and Name */}
               <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-                {selectedVendor.profilePicture ? (
+                {displayImage ? (
                   <img
-                    src={selectedVendor.profilePicture}
+                    src={displayImage}
                     alt={selectedVendor.name || 'Vendor'}
                     style={{
                       width: '70px',

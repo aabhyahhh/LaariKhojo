@@ -1,4 +1,5 @@
 import axios, { AxiosInstance, AxiosError, AxiosRequestConfig } from 'axios';
+import { API_URL } from './config';
 
 // Define types for API responses
 export interface Vendor {
@@ -36,9 +37,7 @@ export interface Review {
 // Create axios instance with default config
 const createAxiosInstance = (): AxiosInstance => {
   const instance = axios.create({
-    baseURL: import.meta.env.DEV 
-      ? 'http://localhost:3000' 
-      : 'https://laari-khojo-backend.onrender.com',
+    baseURL: API_URL,
     timeout: 10000, // 10 seconds timeout
     headers: {
       'Content-Type': 'application/json',

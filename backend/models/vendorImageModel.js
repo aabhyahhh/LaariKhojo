@@ -13,6 +13,11 @@ const vendorImageSchema = new mongoose.Schema({
   uploadedAt: {
     type: Date,
     default: Date.now
+  },
+  type: {
+    type: String,
+    enum: ['display', 'business'],
+    required: true
   }
 });
 

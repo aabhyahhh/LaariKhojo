@@ -33,6 +33,10 @@ router.post('/upload-display-picture', auth, isAdmin, vendorImageController.uplo
 router.get('/vendor-images/:vendorId', auth, isAdmin, vendorImageController.getVendorImages);
 // Get display picture for a vendor
 router.get('/display-picture/:vendorId', auth, isAdmin, vendorImageController.getDisplayPicture);
+// Delete a business image
+router.delete('/vendor-image/:imageId', auth, isAdmin, vendorImageController.deleteBusinessImage);
+// Delete display picture for a vendor
+router.delete('/display-picture/:vendorId', auth, isAdmin, vendorImageController.deleteDisplayPicture);
 
 // Export the router for use in app.js or other modules
 module.exports = router;
