@@ -1,7 +1,6 @@
 import { Routes, Route, useLocation, Navigate } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
 import HomeScreen from "./components/HomeScreen";
-import Register from "./components/Register";
 import UpdateProfile from "./components/UpdateProfile";
 import Login from "./components/Login";
 import laari from "./assets/logo_cropped.png";
@@ -15,6 +14,9 @@ import api, { normalizeVendor, Review } from './api/client';
 
 
 import ReactGA from 'react-ga4';
+import { FiFilter, FiClock, FiRefreshCw } from 'react-icons/fi';
+import AdminPage from './components/AdminPage';
+import AdminRegister from './components/AdminRegister';
 
 ReactGA.initialize('G-ZC8J75N781'); // Your GA4 Measurement ID
 
@@ -1667,19 +1669,22 @@ function MapDisplay() {
             }}
           />
           <div
-            className="filter-panel"
+            className="filter-panel-responsive"
             style={{
-              position: 'absolute',
-              top: window.innerWidth >= 900 ? 70 : 120,
-              left: window.innerWidth >= 900 ? 420 : 20,
-              width: window.innerWidth >= 900 ? 340 : 300,
+              position: window.innerWidth < 900 ? 'fixed' : 'absolute',
+              left: window.innerWidth < 900 ? 0 : (window.innerWidth >= 900 ? 420 : 20),
+              bottom: window.innerWidth < 900 ? 0 : 'auto', // flush with bottom on mobile/tablet
+              top: window.innerWidth < 900 ? 'auto' : (window.innerWidth >= 900 ? 70 : 120),
+              width: window.innerWidth < 900 ? '100vw' : (window.innerWidth >= 900 ? 340 : 300),
               background: 'white',
-              borderRadius: '8px',
+              borderRadius: window.innerWidth < 900 ? '18px 18px 0 0' : '8px',
               padding: '16px',
               boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
               zIndex: 2002,
               marginTop: 0,
               pointerEvents: 'auto',
+              maxHeight: window.innerWidth < 900 ? '60vh' : undefined,
+              overflowY: window.innerWidth < 900 ? 'auto' : undefined,
             }}
           >
             {/* Vendor Count */}
@@ -1940,19 +1945,7 @@ function MapDisplay() {
           }}
           title="Refresh Location"
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="#007bff"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
-          </svg>
+          <FiRefreshCw size={20} color="#007bff" />
         </button>
         {/* Zoom controls will be rendered by Leaflet, but you can add custom ones here if needed */}
       </div>
@@ -2822,46 +2815,106 @@ The user reports that this vendor is not present at the specified location.
           onClick={closeVendorCard}
         />
       )}
-      {/* WhatsApp Floating Button - Bottom Right */}
-      <a
-        href="https://wa.me/15557897194?text=Hi"
-        target="_blank"
-        rel="noopener noreferrer"
+      {/* New Circular Icon Buttons Above WhatsApp - Only Mobile/Tablet */}
+      <div
+        className="floating-action-buttons-mobile"
         style={{
           position: 'fixed',
-          bottom: 24,
-          right: 24,
-          zIndex: 2500,
-          width: 50,
-          height: 50,
-          borderRadius: '50%',
-          background: '#25D366',
+          bottom: 24, // move icons further down
+          right: 24, // match previous WhatsApp button position
+          zIndex: 2501,
           display: 'flex',
+          flexDirection: 'column',
           alignItems: 'center',
-          justifyContent: 'center',
-          boxShadow: 'none',
-          border: 'none',
-          cursor: 'pointer',
-          transition: 'background 0.2s',
-          padding: 0,
+          gap: 12,
         }}
-        aria-label="Chat on WhatsApp"
       >
-        <svg width="28" height="28" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="16" cy="16" r="16" fill="#25D366"/>
-          <path d="M16 6.5C10.2 6.5 5.5 11.2 5.5 17C5.5 18.7 6 20.3 6.8 21.7L5 27L10.4 25.2C11.7 25.9 13.3 26.5 15 26.5C20.8 26.5 25.5 21.8 25.5 16C25.5 11.2 20.8 6.5 16 6.5ZM15 24.5C13.5 24.5 12.1 24.1 10.9 23.4L10.6 23.2L7.5 24.2L8.5 21.1L8.3 20.8C7.5 19.5 7 18 7 16.5C7 12.4 10.4 9 14.5 9C18.6 9 22 12.4 22 16.5C22 20.6 18.6 24 14.5 24C14.3 24 14.1 24 14 24C14.3 24.2 14.6 24.4 15 24.5ZM19.2 18.7C18.9 18.6 17.7 18 17.4 17.9C17.1 17.8 16.9 17.8 16.7 18.1C16.5 18.3 16.2 18.7 16 18.9C15.8 19.1 15.6 19.1 15.3 19C14.2 18.6 13.2 17.7 12.6 16.7C12.5 16.4 12.6 16.2 12.8 16C13 15.8 13.2 15.5 13.3 15.3C13.4 15.1 13.4 14.9 13.3 14.7C13.2 14.5 12.7 13.3 12.5 12.8C12.3 12.3 12.1 12.3 11.9 12.3C11.7 12.3 11.5 12.3 11.3 12.3C11.1 12.3 10.8 12.4 10.7 12.6C10.2 13.2 10 14.1 10.2 15.1C10.5 16.7 11.7 18.2 13.2 19.1C14.7 20 16.5 20.2 18.1 19.7C19.1 19.4 20 18.8 20.6 18.3C20.8 18.2 20.9 18 20.9 17.8C20.9 17.6 20.8 17.4 20.7 17.3C20.6 17.2 20.5 17.1 20.3 17.1C20.1 17.1 19.5 17.1 19.2 18.7Z" fill="#fff"/>
-        </svg>
-      </a>
+        <style>{`
+          @media (min-width: 900px) {
+            .floating-action-buttons-mobile { display: none !important; }
+          }
+          @media (max-width: 899px) {
+            .searchbar-buttons-mobile { display: none !important; }
+          }
+        `}</style>
+        {/* Filter Button */}
+        <button
+          onClick={() => setShowFilters(!showFilters)}
+          style={{
+            width: 38,
+            height: 38,
+            borderRadius: '50%',
+            background: '#C80B41',
+            border: '2px solid #C80B41',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+            color: 'white',
+            fontSize: 20,
+            cursor: 'pointer',
+            transition: 'background 0.2s',
+            marginBottom: 0,
+            outline: 'none',
+          }}
+          aria-label="Filter"
+        >
+          <FiFilter size={20} color="white" />
+        </button>
+        {/* Open Now Button */}
+        <button
+          onClick={() => {
+            const newShowOnlyOpen = !showOnlyOpen;
+            setShowOnlyOpen(newShowOnlyOpen);
+            if (newShowOnlyOpen) {
+              const filtered = applyFilters(vendors);
+              setFilteredVendors(filtered);
+            } else {
+              if (activeFilters.foodTypes.length === 0 && activeFilters.categories.length === 0) {
+                setFilteredVendors([]);
+              } else {
+                const filtered = applyFilters(vendors);
+                setFilteredVendors(filtered);
+              }
+            }
+          }}
+          style={{
+            width: 38,
+            height: 38,
+            borderRadius: '50%',
+            background: showOnlyOpen ? 'white' : '#C80B41',
+            border: '2px solid #C80B41',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+            fontSize: 20,
+            cursor: 'pointer',
+            transition: 'background 0.2s',
+            marginBottom: 0,
+            outline: 'none',
+          }}
+          aria-label="What's Open Now"
+        >
+          <FiClock size={20} color={showOnlyOpen ? '#C80B41' : 'white'} />
+        </button>
+      </div>
     </div>
   );
 }
 
 function App() {
   const location = useLocation();
+  const navigate = useNavigate();
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
   
-  const handleLoginSuccess = (token: string) => {
+  const handleLoginSuccess = (token: string, user: any) => {
     setToken(token);
+    if (user?.role === "admin" || user?.role === "super admin") {
+      navigate("/admin");
+    } else {
+      navigate("/update-profile");
+    }
   };
   usePageTracking(); // tracks every route change
 
@@ -2872,10 +2925,6 @@ function App() {
         <Routes>
           <Route path="/" element={<HomeScreen />} />
           <Route path="/map" element={<MapDisplay />} />
-          <Route
-            path="/register"
-            element={<Register onRegisterSuccess={() => {}} />}
-          />
           <Route
             path="/login"
             element={<Login onLoginSuccess={handleLoginSuccess} />}
@@ -2890,6 +2939,8 @@ function App() {
               )
             }
           />
+          <Route path="/admin" element={<AdminPage />} />
+          <Route path="/admin/register" element={<AdminRegister />} />
         </Routes>
       </div>
     </div>

@@ -125,6 +125,7 @@ const HomeScreen: React.FC = () => {
   };
 
   const extractCoordinates = (mapsLink: string) => {
+    if (typeof mapsLink !== 'string') return null;
     // Try !3d...!4d... pattern
     let match = mapsLink.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/);
     if (match) {
@@ -275,7 +276,7 @@ const HomeScreen: React.FC = () => {
         <button
           className="get-started-btn"
           onClick={handleGetStartedClick}
-          style={{ backgroundColor: "#C80B41", margin:'15px' }}
+          style={{ backgroundColor: "#C80B41", margin:'15px', cursor: 'pointer' }}
         >
           Nearby Vendors
           {/* Arrow icon - using a simple SVG for now */}

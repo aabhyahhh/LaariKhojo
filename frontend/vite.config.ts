@@ -21,7 +21,7 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
-        target: 'https://laari-khojo-backend.onrender.com/',
+        target: 'https://laarikhojo.onrender.com',
         changeOrigin: true,
         secure: false
       }

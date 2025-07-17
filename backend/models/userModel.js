@@ -21,16 +21,26 @@ const userSchema = new mongoose.Schema({
     },
     contactNumber:{
         type: String, 
-        required: true,
+        required: function() { return this.role !== 'super admin' && this.role !== 'viewer'; },
         index: true
     },
     mapsLink:{
         type: String, 
-        required: true
+        required: function() { return this.role !== 'super admin' && this.role !== 'viewer'; }
+    },
+    displayPicture: {
+        type: String, // stores filename or URL
+        default: ''
+    },
+    role: {
+        type: String,
+        enum: ['super admin', 'viewer'],
+        default: 'viewer',
+        index: true
     },
     operatingHours: {
         type: operatingHoursSchema,
-        required: true
+        required: function() { return this.role !== 'super admin' && this.role !== 'viewer'; }
       }
 
 },{timestamps: true}

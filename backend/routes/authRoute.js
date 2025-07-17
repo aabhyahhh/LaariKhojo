@@ -11,7 +11,7 @@
 
 
     // Use authController.registerUser properly
-    router.post("/register", registerValidator, authController.registerUser);
+    router.post("/admin/register", authController.registerAdmin);
     router.post("/login", loginValidator, authController.loginUser);
 
 

@@ -6,22 +6,33 @@ const { addPermission } = require('../admin/permissionController');
 const { getPermissions } = require('../admin/permissionController');
 const { deletePermission } = require('../admin/permissionController');
 const { updatePermission } = require('../admin/permissionController');
+const vendorImageController = require('../controllers/admin/vendorImageController');
 
 const { Validator, deleteValidator, updateValidator } = require('../helpers/adminValidator');
 
 const auth = require('../middlewares/authMiddleware');
+const isAdmin = require('../middlewares/isAdmin');
 
 // Add Permission by Admin
-router.post('/add-permission', auth, Validator, addPermission);
+router.post('/add-permission', auth, isAdmin, Validator, addPermission);
 
 //Get Permissions from Admin
-router.get('/get-permissions', auth, getPermissions);
+router.get('/get-permissions', auth, isAdmin, getPermissions);
 
 //Delete Permission by Admin
-router.post('/delete-permission', auth, deleteValidator, deletePermission);
+router.post('/delete-permission', auth, isAdmin, deleteValidator, deletePermission);
 
 //Update Permission by Admin
-router.post('/update-permission', auth, updateValidator, updatePermission);
+router.post('/update-permission', auth, isAdmin, updateValidator, updatePermission);
+
+// Upload carousel image for vendor
+router.post('/upload-vendor-image', auth, isAdmin, vendorImageController.uploadVendorImage);
+// Upload or update display picture for vendor
+router.post('/upload-display-picture', auth, isAdmin, vendorImageController.uploadDisplayPicture);
+// Get all images for a vendor
+router.get('/vendor-images/:vendorId', auth, isAdmin, vendorImageController.getVendorImages);
+// Get display picture for a vendor
+router.get('/display-picture/:vendorId', auth, isAdmin, vendorImageController.getDisplayPicture);
 
 // Export the router for use in app.js or other modules
 module.exports = router;

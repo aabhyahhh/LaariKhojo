@@ -61,6 +61,7 @@ mongoose.connection.on("error", (err) => {
 
 // Serve static files from the React app build directory
 app.use(express.static(path.join(__dirname, '../frontend/dist')));
+app.use('/public/vendor-images', express.static(path.join(__dirname, 'public/vendor-images')));
 
 app.use("/api", authRoutes);
 app.use("/api", webhookRoutes);
