@@ -2,10 +2,10 @@ const express = require('express');
 const router = express.Router();
 
 // Import the controller and validator
-const { addPermission } = require('../admin/permissionController');
-const { getPermissions } = require('../admin/permissionController');
-const { deletePermission } = require('../admin/permissionController');
-const { updatePermission } = require('../admin/permissionController');
+const { addPermission } = require('../controllers/admin/permissionController');
+const { getPermissions } = require('../controllers/admin/permissionController');
+const { deletePermission } = require('../controllers/admin/permissionController');
+const { updatePermission } = require('../controllers/admin/permissionController');
 const vendorImageController = require('../controllers/admin/vendorImageController');
 
 const { Validator, deleteValidator, updateValidator } = require('../helpers/adminValidator');
