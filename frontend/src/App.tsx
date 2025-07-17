@@ -17,6 +17,7 @@ import ReactGA from 'react-ga4';
 import { FiFilter, FiClock, FiRefreshCw } from 'react-icons/fi';
 import AdminPage from './components/AdminPage';
 import AdminRegister from './components/AdminRegister';
+import { API_URL } from "./api/config";
 
 ReactGA.initialize('G-ZC8J75N781'); // Your GA4 Measurement ID
 
@@ -193,7 +194,34 @@ function MapDisplay() {
 
   const navigate = useNavigate();
 
-
+  // Add state for displayImage, businessImages, and carouselIndex in MapDisplay vendor card
+  const [displayImage, setDisplayImage] = useState<string | null>(null);
+  const [businessImages, setBusinessImages] = useState<string[]>([]);
+  const [carouselIndex, setCarouselIndex] = useState(0);
+  useEffect(() => {
+    if (!selectedVendor) {
+      setDisplayImage(null);
+      setBusinessImages([]);
+      return;
+    }
+    // Fetch display picture (public endpoint)
+    fetch(`${API_URL}/api/public/display-picture/${selectedVendor._id}`)
+      .then(res => res.json())
+      .then(data => setDisplayImage(data.displayPicture || null))
+      .catch(() => setDisplayImage(null));
+    // Fetch business images (public endpoint)
+    fetch(`${API_URL}/api/public/vendor-images/${selectedVendor._id}`)
+      .then(res => res.json())
+      .then(data => setBusinessImages(Array.isArray(data) ? data.map((img: any) => img.imageUrl) : []))
+      .catch(() => setBusinessImages([]));
+    setCarouselIndex(0);
+  }, [selectedVendor]);
+  const handlePrevImage = () => {
+    setCarouselIndex((prev) => (businessImages.length === 0 ? 0 : (prev - 1 + businessImages.length) % businessImages.length));
+  };
+  const handleNextImage = () => {
+    setCarouselIndex((prev) => (businessImages.length === 0 ? 0 : (prev + 1) % businessImages.length));
+  };
 
   // Filter vendors based on active filters and open status
   const applyFilters = (vendorList: Vendor[]) => {
@@ -2031,10 +2059,10 @@ function MapDisplay() {
           <div style={{ padding: '20px 16px' }}>
             {/* Profile Picture and Name */}
             <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-              {selectedVendor.profilePicture ? (
+              {displayImage ? (
                 <img
-                  src={selectedVendor.profilePicture}
-                  alt={selectedVendor.name || 'Vendor'}
+                  src={displayImage}
+                  alt={selectedVendor?.name || 'Vendor'}
                   style={{
                     width: '70px',
                     height: '70px',
@@ -2058,7 +2086,7 @@ function MapDisplay() {
                   fontWeight: 'bold',
                   marginBottom: '8px',
                 }}>
-                  {(selectedVendor.name?.charAt(0) || '?').toUpperCase()}
+                  {(selectedVendor?.name?.charAt(0) || '?').toUpperCase()}
                 </div>
               )}
               <h2 style={{ 
@@ -2068,7 +2096,7 @@ function MapDisplay() {
                 fontWeight: '600',
                 lineHeight: '1.2'
               }}>
-                {selectedVendor.name || 'Not available'}
+                {selectedVendor?.name || 'Not available'}
               </h2>
               <div style={{ 
                 color: '#666', 
@@ -2076,12 +2104,12 @@ function MapDisplay() {
                 fontSize: '13px',
                 fontWeight: '500'
               }}>
-                {selectedVendor.foodType || 'Not available'}
+                {selectedVendor?.foodType || 'Not available'}
               </div>
             </div>
 
             {/* Operating Status */}
-            {selectedVendor.operatingHours && (
+            {selectedVendor?.operatingHours && (
               <div style={{
                 textAlign: 'center',
                 marginBottom: '16px',
@@ -2148,7 +2176,7 @@ function MapDisplay() {
                   </a>
                 );
               })()}
-              {selectedVendor.contactNumber && (
+              {selectedVendor?.contactNumber && (
                 <a
                   href={`tel:${selectedVendor.contactNumber}`}
                   style={{
@@ -2260,7 +2288,7 @@ The user reports that this vendor is not present at the specified location.
               textAlign: 'center',
               color: '#666'
             }}>
-              <strong>Phone:</strong> {selectedVendor.contactNumber || 'Not available'}
+              <strong>Phone:</strong> {selectedVendor?.contactNumber || 'Not available'}
             </div>
 
             {/* Operating Hours and Days - Compact */}
@@ -2275,7 +2303,7 @@ The user reports that this vendor is not present at the specified location.
             }}>
               <div style={{ marginBottom: '6px' }}>
                 <strong>Hours:</strong> {
-                  selectedVendor.operatingHours && 
+                  selectedVendor?.operatingHours && 
                   selectedVendor.operatingHours.openTime && 
                   selectedVendor.operatingHours.closeTime 
                     ? `${selectedVendor.operatingHours.openTime} - ${selectedVendor.operatingHours.closeTime}` 
@@ -2284,7 +2312,7 @@ The user reports that this vendor is not present at the specified location.
               </div>
               <div>
                 <strong>Days:</strong> {
-                  selectedVendor.operatingHours && 
+                  selectedVendor?.operatingHours && 
                   selectedVendor.operatingHours.days && 
                   selectedVendor.operatingHours.days.length > 0 
                     ? selectedVendor.operatingHours.days
@@ -2306,7 +2334,7 @@ The user reports that this vendor is not present at the specified location.
               }}>
                 Menu
               </h3>
-              {Array.isArray(selectedVendor.bestDishes ?? []) && (selectedVendor.bestDishes ?? []).length > 0 ? (
+              {Array.isArray(selectedVendor?.bestDishes ?? []) && (selectedVendor?.bestDishes ?? []).length > 0 ? (
                 <div style={{ 
                   maxHeight: '200px', 
                   overflowY: 'auto',
@@ -2315,7 +2343,7 @@ The user reports that this vendor is not present at the specified location.
                   borderRadius: '8px',
                   border: '1px solid #e9ecef'
                 }}>
-                  {(selectedVendor.bestDishes ?? []).slice(0, 8).map((dish, idx) => (
+                  {(selectedVendor?.bestDishes ?? []).slice(0, 8).map((dish, idx) => (
                     <div key={idx} style={{ 
                       display: 'flex',
                       justifyContent: 'space-between',
@@ -2324,7 +2352,7 @@ The user reports that this vendor is not present at the specified location.
                       fontSize: '13px',
                       color: '#444',
                       paddingBottom: '6px',
-                      borderBottom: idx < Math.min((selectedVendor.bestDishes ?? []).length - 1, 7) ? '1px solid #e9ecef' : 'none'
+                      borderBottom: idx < Math.min((selectedVendor?.bestDishes ?? []).length - 1, 7) ? '1px solid #e9ecef' : 'none'
                     }}>
                       <span style={{ 
                         fontWeight: '500',
@@ -2366,6 +2394,26 @@ The user reports that this vendor is not present at the specified location.
                 </div>
               )}
             </div>
+
+            {/* Business Images Carousel (below Menu) */}
+            {businessImages.length > 0 && (
+              <div style={{ margin: '20px 0', textAlign: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                  <button onClick={handlePrevImage} style={{ border: 'none', background: 'none', fontSize: 22, cursor: 'pointer', color: '#888', padding: 4 }}>&lt;</button>
+                  <div style={{ width: 180, height: 120, overflow: 'hidden', borderRadius: 10, border: '1px solid #eee', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fafafa' }}>
+                    <img
+                      src={businessImages[carouselIndex]}
+                      alt={`Business ${carouselIndex + 1}`}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 10 }}
+                    />
+                  </div>
+                  <button onClick={handleNextImage} style={{ border: 'none', background: 'none', fontSize: 22, cursor: 'pointer', color: '#888', padding: 4 }}>&gt;</button>
+                </div>
+                <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+                  {carouselIndex + 1} / {businessImages.length}
+                </div>
+              </div>
+            )}
 
             {/* Reviews & Ratings - Enhanced Version */}
             <div style={{ 

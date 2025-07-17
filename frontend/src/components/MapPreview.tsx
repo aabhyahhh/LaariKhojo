@@ -51,6 +51,14 @@ const MapPreview: React.FC<MapPreviewProps> = ({ vendors = [] }) => {
   const [reviewError, setReviewError] = useState<string | null>(null);
   const [displayImage, setDisplayImage] = useState<string | null>(null);
   const [businessImages, setBusinessImages] = useState<string[]>([]);
+  // Add helper for infinite carousel index
+  const [carouselIndex, setCarouselIndex] = useState(0);
+  const handlePrevImage = () => {
+    setCarouselIndex((prev) => (businessImages.length === 0 ? 0 : (prev - 1 + businessImages.length) % businessImages.length));
+  };
+  const handleNextImage = () => {
+    setCarouselIndex((prev) => (businessImages.length === 0 ? 0 : (prev + 1) % businessImages.length));
+  };
 
   // Helper function to convert time string to minutes from midnight (supports 24-hour and 12-hour AM/PM)
   const convertToMinutes = (timeStr: string): number => {
@@ -408,13 +416,13 @@ const MapPreview: React.FC<MapPreviewProps> = ({ vendors = [] }) => {
       setBusinessImages([]);
       return;
     }
-    // Fetch display picture
-    fetch(`${API_URL}/api/admin/display-picture/${selectedVendor._id}`)
+    // Fetch display picture (public endpoint)
+    fetch(`${API_URL}/api/public/display-picture/${selectedVendor._id}`)
       .then(res => res.json())
       .then(data => setDisplayImage(data.displayPicture || null))
       .catch(() => setDisplayImage(null));
-    // Fetch business images
-    fetch(`${API_URL}/api/admin/vendor-images/${selectedVendor._id}`)
+    // Fetch business images (public endpoint)
+    fetch(`${API_URL}/api/public/vendor-images/${selectedVendor._id}`)
       .then(res => res.json())
       .then(data => setBusinessImages(Array.isArray(data) ? data.map((img: any) => img.imageUrl) : []))
       .catch(() => setBusinessImages([]));
@@ -508,7 +516,7 @@ const MapPreview: React.FC<MapPreviewProps> = ({ vendors = [] }) => {
                 {displayImage ? (
                   <img
                     src={displayImage}
-                    alt={selectedVendor.name || 'Vendor'}
+                    alt={selectedVendor?.name || 'Vendor'}
                     style={{
                       width: '70px',
                       height: '70px',
@@ -532,7 +540,7 @@ const MapPreview: React.FC<MapPreviewProps> = ({ vendors = [] }) => {
                     fontWeight: 'bold',
                     marginBottom: '8px',
                   }}>
-                    {(selectedVendor.name?.charAt(0) || '?').toUpperCase()}
+                    {(selectedVendor?.name?.charAt(0) || '?').toUpperCase()}
                   </div>
                 )}
                 <h2 style={{ 
@@ -542,7 +550,7 @@ const MapPreview: React.FC<MapPreviewProps> = ({ vendors = [] }) => {
                   fontWeight: '600',
                   lineHeight: '1.2'
                 }}>
-                  {selectedVendor.name || 'Not available'}
+                  {selectedVendor?.name || 'Not available'}
                 </h2>
                 <div style={{ 
                   color: '#666', 
@@ -550,12 +558,12 @@ const MapPreview: React.FC<MapPreviewProps> = ({ vendors = [] }) => {
                   fontSize: '13px',
                   fontWeight: '500'
                 }}>
-                  {selectedVendor.foodType || 'Not available'}
+                  {selectedVendor?.foodType || 'Not available'}
                 </div>
               </div>
 
               {/* Operating Status */}
-              {selectedVendor.operatingHours && (
+              {selectedVendor?.operatingHours && (
                 <div style={{
                   textAlign: 'center',
                   marginBottom: '16px',
@@ -917,6 +925,26 @@ The user reports that this vendor is not present at the specified location.
                   </div>
                 )}
               </div>
+
+              {/* Business Images Carousel (below Menu) */}
+              {businessImages.length > 0 && (
+                <div style={{ margin: '20px 0', textAlign: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                    <button onClick={handlePrevImage} style={{ border: 'none', background: 'none', fontSize: 22, cursor: 'pointer', color: '#888', padding: 4 }}>&lt;</button>
+                    <div style={{ width: 180, height: 120, overflow: 'hidden', borderRadius: 10, border: '1px solid #eee', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fafafa' }}>
+                      <img
+                        src={businessImages[carouselIndex]}
+                        alt={`Business ${carouselIndex + 1}`}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 10 }}
+                      />
+                    </div>
+                    <button onClick={handleNextImage} style={{ border: 'none', background: 'none', fontSize: 22, cursor: 'pointer', color: '#888', padding: 4 }}>&gt;</button>
+                  </div>
+                  <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+                    {carouselIndex + 1} / {businessImages.length}
+                  </div>
+                </div>
+              )}
 
               {/* Reviews & Ratings - Enhanced Version */}
               <div style={{ 

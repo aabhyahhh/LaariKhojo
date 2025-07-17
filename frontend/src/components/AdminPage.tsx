@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { API_URL } from "../api/config";
 import { api, Vendor } from '../api/client';
+import "./AdminPage.css";
 
 // Example: get user from context or localStorage
 const getUser = () => {
@@ -10,6 +11,12 @@ const getUser = () => {
   } catch {
     return null;
   }
+};
+
+const getFullImageUrl = (url: string | null) => {
+  if (!url) return '';
+  if (url.startsWith('http')) return url;
+  return `${API_URL}${url}`;
 };
 
 const AdminPage: React.FC = () => {
@@ -177,62 +184,66 @@ const AdminPage: React.FC = () => {
   };
 
   return (
-    <div style={{ maxWidth: 600, margin: '40px auto', padding: 24, border: '1px solid #eee', borderRadius: 8 }}>
-      <h2>Admin: Vendor Image Upload</h2>
-      <div style={{ marginBottom: 24 }}>
-        <label>Vendor:
-          <input
-            type="text"
-            placeholder="Search by name, email, or contact"
-            value={vendorSearch}
-            onChange={e => setVendorSearch(e.target.value)}
-            style={{ width: 300, marginRight: 8 }}
-          />
-          <select
-            value={vendorId}
-            onChange={e => setVendorId(e.target.value)}
-            style={{ width: 300 }}
-          >
-            <option value="">Select a vendor</option>
-            {filteredVendors.map(v => (
-              <option key={v._id} value={v._id}>
-                {v.name || v.email || v.contactNumber}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
-      {/* Image Preview Section */}
-      {vendorId && (
-        <div style={{ marginBottom: 32 }}>
-          <h4>Current Display Picture</h4>
-          {displayImage ? (
-            <div style={{ marginBottom: 8 }}>
-              <img src={displayImage} alt="Display" style={{ width: 120, height: 120, objectFit: 'cover', borderRadius: '50%' }} />
-              <button onClick={handleDeleteDisplay} style={{ marginLeft: 16, color: 'red' }}>Delete</button>
-            </div>
-          ) : (
-            <div style={{ color: '#888' }}>No display picture</div>
-          )}
-          <h4>Current Business Images</h4>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16 }}>
-            {businessImages.length > 0 ? businessImages.map(img => (
-              <div key={img._id} style={{ position: 'relative' }}>
-                <img src={img.imageUrl} alt="Business" style={{ width: 120, height: 80, objectFit: 'cover', borderRadius: 8 }} />
-                <button onClick={() => handleDeleteBusinessImage(img._id)} style={{ position: 'absolute', top: 2, right: 2, color: 'red', background: 'white', border: 'none', borderRadius: '50%', width: 24, height: 24, cursor: 'pointer' }}>×</button>
-              </div>
-            )) : <div style={{ color: '#888' }}>No business images</div>}
-          </div>
+    <div className="admin-container">
+      <div className="admin-card">
+        <div className="admin-header">
+          <h2>Admin: Vendor Image Upload</h2>
         </div>
-      )}
-      <form onSubmit={handleSubmitAll}>
-        <h4>Upload Display Picture</h4>
-        <input type="file" accept="image/*" onChange={e => setDisplayPicture(e.target.files?.[0] || null)} />
-        <h4>Upload Carousel Images</h4>
-        <input type="file" accept="image/*" multiple onChange={e => setCarouselImages(e.target.files)} />
-        <button type="submit" style={{ marginTop: 24 }}>Submit</button>
-      </form>
-      {message && <div style={{ marginTop: 24, color: 'green' }}>{message}</div>}
+        <div className="admin-form-section">
+          <label className="admin-label">Vendor:
+            <input
+              type="text"
+              placeholder="Search by name, email, or contact"
+              value={vendorSearch}
+              onChange={e => setVendorSearch(e.target.value)}
+              className="admin-input admin-vendor-search"
+            />
+            <select
+              value={vendorId}
+              onChange={e => setVendorId(e.target.value)}
+              className="admin-input admin-vendor-select"
+            >
+              <option value="">Select a vendor</option>
+              {filteredVendors.map(v => (
+                <option key={v._id} value={v._id}>
+                  {v.name || v.email || v.contactNumber}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        {/* Image Preview Section */}
+        {vendorId && (
+          <div className="admin-image-preview-section">
+            <h4 className="admin-section-title">Current Display Picture</h4>
+            {displayImage ? (
+              <div className="admin-display-image-wrapper">
+                <img src={getFullImageUrl(displayImage)} alt="Display" className="admin-display-image" />
+                <button onClick={handleDeleteDisplay} className="admin-delete-btn">Delete</button>
+              </div>
+            ) : (
+              <div className="admin-no-image">No display picture</div>
+            )}
+            <h4 className="admin-section-title">Current Business Images</h4>
+            <div className="admin-business-images-wrapper">
+              {businessImages.length > 0 ? businessImages.map(img => (
+                <div key={img._id} className="admin-business-image-item">
+                  <img src={getFullImageUrl(img.imageUrl)} alt="Business" className="admin-business-image" />
+                  <button onClick={() => handleDeleteBusinessImage(img._id)} className="admin-delete-btn admin-business-delete">×</button>
+                </div>
+              )) : <div className="admin-no-image">No business images</div>}
+            </div>
+          </div>
+        )}
+        <form onSubmit={handleSubmitAll} className="admin-form">
+          <h4 className="admin-section-title">Upload Display Picture</h4>
+          <input type="file" accept="image/*" onChange={e => setDisplayPicture(e.target.files?.[0] || null)} className="admin-input" />
+          <h4 className="admin-section-title">Upload Carousel Images</h4>
+          <input type="file" accept="image/*" multiple onChange={e => setCarouselImages(e.target.files)} className="admin-input" />
+          <button type="submit" className="admin-submit-btn">Submit</button>
+        </form>
+        {message && <div className="admin-message">{message}</div>}
+      </div>
     </div>
   );
 };
