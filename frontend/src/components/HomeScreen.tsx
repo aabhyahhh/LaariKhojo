@@ -183,10 +183,14 @@ const HomeScreen: React.FC = () => {
   useEffect(() => {
     // Try IP-based location first to avoid Google's location services
     const getLocation = async () => {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 5000);
+
       try {
         const response = await fetch('https://ipapi.co/json/', { 
-          signal: AbortSignal.timeout(5000) 
+          signal: controller.signal 
         });
+        clearTimeout(timeout);
         const data = await response.json();
         
         if (data.latitude && data.longitude) {
@@ -198,6 +202,7 @@ const HomeScreen: React.FC = () => {
         }
       } catch (ipError) {
         console.log("IP location failed, trying browser geolocation...", ipError);
+        clearTimeout(timeout);
       }
 
       // Fallback to browser geolocation
@@ -209,10 +214,21 @@ const HomeScreen: React.FC = () => {
               longitude: position.coords.longitude,
             });
           },
-          () => {
+          (geoError: any) => {
+            console.warn("Browser geolocation failed:", geoError);
+            
+            // Provide more specific error messages based on error type
+            if (geoError.code === 1) {
+              console.warn("Location access denied. Please enable location permissions.");
+            } else if (geoError.code === 2) {
+              console.warn("Location unavailable. Please check your device's location services.");
+            } else if (geoError.code === 3) {
+              console.warn("Location request timed out. Please try again.");
+            }
+            
             setUserLocation(null);
           },
-          { enableHighAccuracy: false, timeout: 10000, maximumAge: 600000 }
+          { enableHighAccuracy: true, timeout: 15000, maximumAge: 300000 }
         );
       }
     };
