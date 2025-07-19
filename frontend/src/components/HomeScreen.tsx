@@ -181,20 +181,43 @@ const HomeScreen: React.FC = () => {
   const [nearbyCount, setNearbyCount] = useState<number>(0);
 
   useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
+    // Try IP-based location first to avoid Google's location services
+    const getLocation = async () => {
+      try {
+        const response = await fetch('https://ipapi.co/json/', { 
+          signal: AbortSignal.timeout(5000) 
+        });
+        const data = await response.json();
+        
+        if (data.latitude && data.longitude) {
           setUserLocation({
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
+            latitude: data.latitude,
+            longitude: data.longitude,
           });
-        },
-        () => {
-          setUserLocation(null);
-        },
-        { enableHighAccuracy: false, timeout: 15000, maximumAge: 300000 }
-      );
-    }
+          return;
+        }
+      } catch (ipError) {
+        console.log("IP location failed, trying browser geolocation...", ipError);
+      }
+
+      // Fallback to browser geolocation
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            setUserLocation({
+              latitude: position.coords.latitude,
+              longitude: position.coords.longitude,
+            });
+          },
+          () => {
+            setUserLocation(null);
+          },
+          { enableHighAccuracy: false, timeout: 10000, maximumAge: 600000 }
+        );
+      }
+    };
+
+    getLocation();
   }, []);
 
   useEffect(() => {
