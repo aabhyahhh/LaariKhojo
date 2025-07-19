@@ -550,7 +550,7 @@ function MapDisplay() {
 
   const fetchVendors = async () => {
     try {
-      const result = await api.getAllUsers(1, 50); // Use pagination with limit 50
+      const result = await api.getAllUsers(1, 30); // Use pagination with limit 30
       
       if (result.success && result.data) {
         // Normalize all vendors to ensure latitude/longitude fields
