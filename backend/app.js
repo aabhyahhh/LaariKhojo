@@ -16,13 +16,12 @@ const publicVendorImageRoutes = require('./routes/publicVendorImageRoute');
 const ipLocationRoute = require('./routes/ipLocationRoute');
 
 const allowedOrigins = [
-  "https://laarikhojo.in",  // Without trailing slash
-  "http://localhost:3000",  // For local development
-  "https://www.laarikhojo.in",    // ✅ ADD THIS LINE
+  "https://laarikhojo.in",
+  "https://www.laarikhojo.in",
+  "https://laarikhojo.onrender.com",
+  "http://localhost:3000",
   "http://localhost:5173",
-  "http://localhost:5174",  // Add this line
-  // For Vite's default port
-  // Add any other origins you need
+  "http://localhost:5174"
 ];
 const app = express();
 
@@ -43,16 +42,18 @@ app.use(compression({
 app.use(express.urlencoded({ extended: true }));
 app.use(cors({
   origin: function(origin, callback) {
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.some(o => (typeof o === 'string' && o === origin) || (o instanceof RegExp && o.test(origin)))) {
+    if (!origin) return callback(null, true); // Allow non-browser requests (like curl, Postman)
+    if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      console.log("Blocked origin:", origin);
+      console.log("Blocked by CORS:", origin);
       callback(new Error("Not allowed by CORS"));
     }
   },
-  methods: "GET,POST,PUT,DELETE",
-  credentials: true
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  credentials: true,
+  allowedHeaders: ["Content-Type", "Authorization"],
+  exposedHeaders: ["Content-Type", "Authorization"]
 }));
 
 app.use(express.json());
