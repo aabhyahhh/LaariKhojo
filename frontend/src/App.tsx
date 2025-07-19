@@ -386,17 +386,34 @@ function MapDisplay() {
   // Alternative: IP-based location fallback
   const getLocationFromIP = async () => {
     try {
-      const response = await fetch('https://ipapi.co/json/');
-      const data = await response.json();
+      // Try multiple IP geolocation services for better reliability
+      const services = [
+        'https://ipapi.co/json/',
+        'https://ipinfo.io/json',
+        'https://api.ipify.org?format=json'
+      ];
       
-      if (data.latitude && data.longitude) {
-        return {
-          latitude: data.latitude,
-          longitude: data.longitude
-        };
+      for (const service of services) {
+        try {
+          const response = await fetch(service, { 
+            signal: AbortSignal.timeout(5000) // 5 second timeout
+          });
+          const data = await response.json();
+          
+          if (data.latitude && data.longitude) {
+            console.log('IP location obtained from:', service);
+            return {
+              latitude: data.latitude,
+              longitude: data.longitude
+            };
+          }
+        } catch (serviceError) {
+          console.log(`IP service ${service} failed:`, serviceError);
+          continue;
+        }
       }
     } catch (error) {
-      console.error('IP location failed:', error);
+      console.error('All IP location services failed:', error);
     }
     return null;
   };
@@ -412,16 +429,30 @@ function MapDisplay() {
       return;
     }
 
+    // Try IP-based location first to avoid Google's location services
     try {
-      // Try browser geolocation first with reduced accuracy to avoid 429 errors
+      const ipLocation = await getLocationFromIP();
+      if (ipLocation) {
+        console.log("Using IP-based location:", ipLocation);
+        setUserLocation(ipLocation);
+        setError("Using approximate location based on your IP address.");
+        setIsLocationLoading(false);
+        return;
+      }
+    } catch (ipError) {
+      console.log("IP location failed, trying browser geolocation...", ipError);
+    }
+
+    // Fallback to browser geolocation with very conservative settings
+    try {
       const position = await new Promise<GeolocationPosition>((resolve, reject) => {
         navigator.geolocation.getCurrentPosition(
           resolve,
           reject,
           {
             enableHighAccuracy: false, // Set to false to avoid 429 errors
-            timeout: 15000, // Increased timeout
-            maximumAge: 300000 // 5 minutes cache to reduce API calls
+            timeout: 10000, // Reduced timeout
+            maximumAge: 600000 // 10 minutes cache to reduce API calls
           }
         );
       });
@@ -431,39 +462,25 @@ function MapDisplay() {
         longitude: position.coords.longitude,
       };
       
-      console.log("User location obtained:", userCoords);
+      console.log("User location obtained from browser:", userCoords);
       setUserLocation(userCoords);
       setError(null);
       setIsLocationLoading(false);
       return;
 
     } catch (geolocationError: any) {
-      console.log("Browser geolocation failed, trying IP location...", geolocationError);
-      
-      // Fallback to IP-based location
-      try {
-        const ipLocation = await getLocationFromIP();
-        if (ipLocation) {
-          console.log("Using IP-based location:", ipLocation);
-          setUserLocation(ipLocation);
-          setError("Using approximate location based on your IP address.");
-        } else {
-          console.log("IP location also failed, using default location");
-          setError("Could not determine your location. Using default view.");
-        }
-      } catch (ipError) {
-        console.error("IP location also failed:", ipError);
-        setError("Could not determine your location. Using default view.");
-      }
-      
+      console.log("Browser geolocation failed:", geolocationError);
+      setError("Could not determine your location. Using default view.");
       setIsLocationLoading(false);
     }
   };
 
   const extractCoordinates = (mapsLink: string) => {
+    if (!mapsLink || typeof mapsLink !== 'string') {
+      return null;
+    }
+    
     try {
-      console.log("Attempting to extract coordinates from:", mapsLink);
-
       // Prefer !3d...!4d... pattern (actual place coordinates)
       let match = mapsLink.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/);
       if (match) {
@@ -471,7 +488,6 @@ function MapDisplay() {
           latitude: parseFloat(match[1]),
           longitude: parseFloat(match[2]),
         };
-        console.log("Extracted coordinates from !3d...!4d...:", coords);
         return coords;
       }
 
@@ -482,20 +498,18 @@ function MapDisplay() {
           latitude: parseFloat(match[1]),
           longitude: parseFloat(match[2]),
         };
-        console.log("Extracted coordinates from @lat,lng:", coords);
         return coords;
       }
 
       // Fallback to place/@lat,lng
       match = mapsLink.match(/place\/.*\/@(-?\d+\.\d+),(-?\d+\.\d+)/);
-        if (match) {
-          const coords = {
-            latitude: parseFloat(match[1]),
-            longitude: parseFloat(match[2]),
-          };
-        console.log("Extracted coordinates from place/@lat,lng:", coords);
-          return coords;
-        }
+      if (match) {
+        const coords = {
+          latitude: parseFloat(match[1]),
+          longitude: parseFloat(match[2]),
+        };
+        return coords;
+      }
 
       // Fallback to q=lat,lng
       match = mapsLink.match(/q=(-?\d+\.\d+),(-?\d+\.\d+)/);
@@ -504,11 +518,29 @@ function MapDisplay() {
           latitude: parseFloat(match[1]),
           longitude: parseFloat(match[2]),
         };
-        console.log("Extracted coordinates from q=lat,lng:", coords);
         return coords;
       }
 
-      console.error("No coordinates found in URL");
+      // Additional patterns for different Google Maps URL formats
+      match = mapsLink.match(/maps\/place\/[^\/]+\/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+      if (match) {
+        const coords = {
+          latitude: parseFloat(match[1]),
+          longitude: parseFloat(match[2]),
+        };
+        return coords;
+      }
+
+      // For URLs with zoom level
+      match = mapsLink.match(/@(-?\d+\.\d+),(-?\d+\.\d+),\d+z/);
+      if (match) {
+        const coords = {
+          latitude: parseFloat(match[1]),
+          longitude: parseFloat(match[2]),
+        };
+        return coords;
+      }
+
       return null;
     } catch (error) {
       console.error("Error extracting coordinates:", error);

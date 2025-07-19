@@ -172,6 +172,31 @@ const MapPreview: React.FC<MapPreviewProps> = ({ vendors = [] }) => {
   }, [vendors]);
 
   const getUserLocation = async () => {
+    // Try IP-based location first to avoid Google's location services
+    try {
+      const response = await fetch('https://ipapi.co/json/', { 
+        signal: AbortSignal.timeout(5000) 
+      });
+      const data = await response.json();
+      
+      if (data.latitude && data.longitude) {
+        const userCoords = {
+          latitude: data.latitude,
+          longitude: data.longitude,
+        };
+        
+        setError(null);
+        if (mapRef.current) {
+          mapRef.current.setView([userCoords.latitude, userCoords.longitude], 15);
+          addUserLocationMarker(userCoords);
+        }
+        return;
+      }
+    } catch (ipError) {
+      console.log("IP location failed, trying browser geolocation...", ipError);
+    }
+
+    // Fallback to browser geolocation
     try {
       const position = await new Promise<GeolocationPosition>((resolve, reject) => {
         navigator.geolocation.getCurrentPosition(
@@ -179,8 +204,8 @@ const MapPreview: React.FC<MapPreviewProps> = ({ vendors = [] }) => {
           reject,
           {
             enableHighAccuracy: false, // Reduced accuracy to avoid 429 errors
-            timeout: 15000, // Increased timeout
-            maximumAge: 300000 // 5 minutes cache to reduce API calls
+            timeout: 10000, // Reduced timeout
+            maximumAge: 600000 // 10 minutes cache to reduce API calls
           }
         );
       });
