@@ -70,49 +70,7 @@ const AdminPage: React.FC = () => {
     return <div style={{ padding: 32, color: 'red' }}>Access denied. Admins only.</div>;
   }
 
-  const handleDisplayPictureUpload = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!displayPicture || !vendorId) return;
-    const formData = new FormData();
-    formData.append('displayPicture', displayPicture);
-    formData.append('vendorId', vendorId);
-    const token = localStorage.getItem('token');
-    try {
-      const res = await fetch(`${API_URL}/api/admin/upload-display-picture`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData,
-      });
-      const data = await res.json();
-      setMessage(data.message || 'Display picture uploaded!');
-    } catch (err) {
-      setMessage('Error uploading display picture');
-    }
-  };
 
-  const handleCarouselImagesUpload = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!carouselImages || !vendorId) return;
-    const token = localStorage.getItem('token');
-    let lastMsg = '';
-    for (let i = 0; i < carouselImages.length; i++) {
-      const formData = new FormData();
-      formData.append('image', carouselImages[i]);
-      formData.append('vendorId', vendorId);
-      try {
-        const res = await fetch(`${API_URL}/api/admin/upload-vendor-image`, {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${token}` },
-          body: formData,
-        });
-        const data = await res.json();
-        lastMsg = data.message || 'Image uploaded!';
-      } catch (err) {
-        lastMsg = 'Error uploading image';
-      }
-    }
-    setMessage(lastMsg);
-  };
 
   const handleDeleteDisplay = async () => {
     if (!vendorId) return;
