@@ -38,6 +38,12 @@ interface MapPreviewProps {
   vendors?: Vendor[];
 }
 
+const getFullImageUrl = (url: string | null) => {
+  if (!url) return '';
+  if (url.startsWith('http')) return url;
+  return `${API_URL}${url}`;
+};
+
 const MapPreview: React.FC<MapPreviewProps> = ({ vendors = [] }) => {
   const mapRef = useRef<L.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -172,9 +178,9 @@ const MapPreview: React.FC<MapPreviewProps> = ({ vendors = [] }) => {
           resolve,
           reject,
           {
-            enableHighAccuracy: true,
-            timeout: 10000,
-            maximumAge: 60000 // 1 minute cache
+            enableHighAccuracy: false, // Reduced accuracy to avoid 429 errors
+            timeout: 15000, // Increased timeout
+            maximumAge: 300000 // 5 minutes cache to reduce API calls
           }
         );
       });
@@ -515,7 +521,7 @@ const MapPreview: React.FC<MapPreviewProps> = ({ vendors = [] }) => {
               <div style={{ textAlign: 'center', marginBottom: '20px' }}>
                 {displayImage ? (
                   <img
-                    src={displayImage}
+                    src={getFullImageUrl(displayImage)}
                     alt={selectedVendor?.name || 'Vendor'}
                     style={{
                       width: '70px',
@@ -933,7 +939,7 @@ The user reports that this vendor is not present at the specified location.
                     <button onClick={handlePrevImage} style={{ border: 'none', background: 'none', fontSize: 22, cursor: 'pointer', color: '#888', padding: 4 }}>&lt;</button>
                     <div style={{ width: 180, height: 120, overflow: 'hidden', borderRadius: 10, border: '1px solid #eee', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fafafa' }}>
                       <img
-                        src={businessImages[carouselIndex]}
+                        src={getFullImageUrl(businessImages[carouselIndex])}
                         alt={`Business ${carouselIndex + 1}`}
                         style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 10 }}
                       />

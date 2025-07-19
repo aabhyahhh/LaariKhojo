@@ -4,6 +4,7 @@ const express = require("express");
 const path = require("path");
 const mongoose = require("mongoose");
 const http = require("http");
+const compression = require("compression"); // Add compression middleware
 const MONGO_URI = process.env.MONGO_URI;
 const axios = require('axios'); // ✅ Add this at the top
 const User = require('./models/userModel');
@@ -25,6 +26,10 @@ const allowedOrigins = [
 const app = express();
 
 const PORT = process.env.PORT || 3000;
+
+// Add compression middleware to reduce response size
+app.use(compression());
+
 app.use(express.urlencoded({ extended: true }));
 app.use(cors({
   origin: function(origin, callback) {
@@ -87,11 +92,31 @@ app.get("/api/expand-url", async (req, res) => {
 
 app.get("/api/all-users", async (req, res) => {
   try {
+    // Add pagination and limit to reduce response size
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 50; // Reduced from 100 to 50
+    const skip = (page - 1) * limit;
+    
+    // Only fetch essential fields to reduce response size
     const vendors = await User.find({})
-      .limit(100)
-      .sort({ updatedAt: -1 })
-      .select('-password'); // Exclude password field for security
-    res.json({ data: vendors });
+      .select('name email contactNumber mapsLink operatingHours foodType profilePicture bestDishes latitude longitude updatedAt')
+      .limit(limit)
+      .skip(skip)
+      .sort({ updatedAt: -1 });
+    
+    // Get total count for pagination info
+    const total = await User.countDocuments({});
+    
+    res.json({ 
+      success: true,
+      data: vendors,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    });
   } catch (error) {
     console.error('Error fetching vendors:', error);
     res.status(500).json({ error: "Failed to fetch vendors" });

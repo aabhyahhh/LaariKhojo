@@ -413,15 +413,15 @@ function MapDisplay() {
     }
 
     try {
-      // Try browser geolocation first
+      // Try browser geolocation first with reduced accuracy to avoid 429 errors
       const position = await new Promise<GeolocationPosition>((resolve, reject) => {
         navigator.geolocation.getCurrentPosition(
           resolve,
           reject,
           {
             enableHighAccuracy: false, // Set to false to avoid 429 errors
-            timeout: 10000,
-            maximumAge: 600000 // 10 minutes cache
+            timeout: 15000, // Increased timeout
+            maximumAge: 300000 // 5 minutes cache to reduce API calls
           }
         );
       });
@@ -518,7 +518,7 @@ function MapDisplay() {
 
   const fetchVendors = async () => {
     try {
-      const result = await api.getAllUsers();
+      const result = await api.getAllUsers(1, 50); // Use pagination with limit 50
       
       if (result.success && result.data) {
         // Normalize all vendors to ensure latitude/longitude fields
@@ -1427,6 +1427,12 @@ function MapDisplay() {
     setSubmitting(false);
   };
 
+  const getFullImageUrl = (url: string | null) => {
+    if (!url) return '';
+    if (url.startsWith('http')) return url;
+    return `${API_URL}${url}`;
+  };
+
   return (
     <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column" }}>
       {/* Top bar: Logo and Search Bar in a flex container for alignment */}
@@ -2061,7 +2067,7 @@ function MapDisplay() {
             <div style={{ textAlign: 'center', marginBottom: '20px' }}>
               {displayImage ? (
                 <img
-                  src={displayImage}
+                  src={getFullImageUrl(displayImage)}
                   alt={selectedVendor?.name || 'Vendor'}
                   style={{
                     width: '70px',
@@ -2402,7 +2408,7 @@ The user reports that this vendor is not present at the specified location.
                   <button onClick={handlePrevImage} style={{ border: 'none', background: 'none', fontSize: 22, cursor: 'pointer', color: '#888', padding: 4 }}>&lt;</button>
                   <div style={{ width: 180, height: 120, overflow: 'hidden', borderRadius: 10, border: '1px solid #eee', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fafafa' }}>
                     <img
-                      src={businessImages[carouselIndex]}
+                      src={getFullImageUrl(businessImages[carouselIndex])}
                       alt={`Business ${carouselIndex + 1}`}
                       style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 10 }}
                     />

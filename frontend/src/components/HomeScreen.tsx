@@ -1,12 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './HomeScreen.css';
 // import Header from '../components/Header'; // Removed unused import
 // import homescreenBg from '../assets/homescreen-bg.png'; // Removed unused import
-import MapPreview from './MapPreview';
+// import MapPreview from './MapPreview'; // Lazy load this component
 import { API_URL } from '../api/config'; // Import API_URL
 import laarikhojoImage from '../assets/laarikhojo.png'; // Import the new image
 import logoCropped from '../assets/logo_cropped.png'; // Import logo_cropped.png
+
+// Lazy load MapPreview component to reduce initial bundle size
+const MapPreview = lazy(() => import('./MapPreview'));
 
 interface Vendor {
   _id: string;
@@ -24,7 +27,8 @@ interface Vendor {
 const HomeScreen: React.FC = () => {
   const navigate = useNavigate();
   const [vendors, setVendors] = useState<Vendor[]>([]); // State to store vendors
-  // const [error, setError] = useState<string | null>(null); // Removed unused state
+  const [isLoading, setIsLoading] = useState(true); // Add loading state
+  const [error, setError] = useState<string | null>(null); // Add error state back
   const [isLaptopResolution, setIsLaptopResolution] = useState(window.innerWidth > 768); // New state for screen resolution
 
   useEffect(() => {
@@ -81,8 +85,20 @@ const HomeScreen: React.FC = () => {
   // Function to fetch vendors (similar to MapDisplay)
   const fetchVendors = async () => {
     try {
+      setIsLoading(true);
+      setError(null);
+      
       console.log("Fetching vendors from:", `${API_URL}/api/all-users`);
-      const response = await fetch(`${API_URL}/api/all-users`);
+      
+      // Add timeout to fetch request
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+      
+      const response = await fetch(`${API_URL}/api/all-users?limit=50`, {
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
       
       if (!response.ok) {
         throw new Error(`Failed to fetch vendors: ${response.status} ${response.statusText}`);
@@ -97,13 +113,25 @@ const HomeScreen: React.FC = () => {
         return data.data;
       } else {
         console.error("API response indicates failure:", data);
-        // setError("Failed to fetch vendors data"); // Removed call to unused setError
+        setError("Failed to fetch vendors data");
         return [];
       }
     } catch (error: unknown) {
       console.error("Error fetching vendors:", error);
-      // setError(`Failed to fetch vendors data: ${error instanceof Error ? error.message : 'Unknown error'}`); // Removed call to unused setError
+      
+      if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+          setError('Request timed out. Please check your internet connection and try again.');
+        } else {
+          setError(`Failed to fetch vendors data: ${error.message}`);
+        }
+      } else {
+        setError('Failed to fetch vendors data: Unknown error');
+      }
+      
       return [];
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -164,7 +192,7 @@ const HomeScreen: React.FC = () => {
         () => {
           setUserLocation(null);
         },
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+        { enableHighAccuracy: false, timeout: 15000, maximumAge: 300000 }
       );
     }
   }, []);
@@ -188,6 +216,63 @@ const HomeScreen: React.FC = () => {
 
   return (
     <div className="home-container">
+      {/* Loading State */}
+      {isLoading && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          backgroundColor: 'rgba(255, 255, 255, 0.9)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 9999,
+          fontSize: '18px',
+          color: '#666'
+        }}>
+          Loading Laari Khojo...
+        </div>
+      )}
+
+      {/* Error State */}
+      {error && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          backgroundColor: 'rgba(255, 255, 255, 0.95)',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 9999,
+          padding: '20px',
+          textAlign: 'center'
+        }}>
+          <div style={{ fontSize: '18px', color: '#d32f2f', marginBottom: '20px' }}>
+            {error}
+          </div>
+          <button 
+            onClick={() => fetchVendors()}
+            style={{
+              padding: '10px 20px',
+              backgroundColor: '#C80B41',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontSize: '16px'
+            }}
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
       {/* Logo Cropped on the top-left for HomeScreen */}
       <div
         style={{
@@ -327,7 +412,20 @@ const HomeScreen: React.FC = () => {
             Expand Map <span style={{ fontSize: "20px", lineHeight: "1" }}>−</span>
           </button>
         </div> */}
-        <MapPreview vendors={vendors} />
+        <Suspense fallback={
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'center', 
+            alignItems: 'center', 
+            height: '400px',
+            fontSize: '18px',
+            color: '#666'
+          }}>
+            Loading map preview...
+          </div>
+        }>
+          <MapPreview vendors={vendors} />
+        </Suspense>
       </div>
 
       {/* Commenting out everything below hero section */}
