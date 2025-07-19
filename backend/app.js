@@ -13,6 +13,7 @@ const authRoutes = require("./routes/authRoute");
 const webhookRoutes = require("./routes/webhookRoute");
 const reviewRoutes = require("./routes/reviewRoute");
 const publicVendorImageRoutes = require('./routes/publicVendorImageRoute');
+const ipLocationRoute = require('./routes/ipLocationRoute');
 
 const allowedOrigins = [
   "https://laarikhojo.in",  // Without trailing slash
@@ -82,6 +83,7 @@ app.use("/api", authRoutes);
 app.use("/api", webhookRoutes);
 app.use("/api", reviewRoutes);
 app.use('/api/public', publicVendorImageRoutes);
+app.use('/api', ipLocationRoute);
 
 const adminRoutes = require("./routes/adminRoute");
 app.use("/api/admin", adminRoutes);

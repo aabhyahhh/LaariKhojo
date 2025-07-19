@@ -169,6 +169,7 @@ function MapDisplay() {
     latitude: number;
     longitude: number;
   } | null>(null);
+  const [locationWatcher, setLocationWatcher] = useState<number | null>(null);
   const [currentZoom, setCurrentZoom] = useState<number>(13);
   const [isMapInitialized, setIsMapInitialized] = useState<boolean>(false);
   const [isLocationLoading, setIsLocationLoading] = useState<boolean>(true);
@@ -383,42 +384,105 @@ function MapDisplay() {
     return { status: 'Open Now', color: '#28a745' };
   };
 
-  // Alternative: IP-based location fallback
+  // Replace getLocationFromIP to call backend proxy
   const getLocationFromIP = async () => {
     try {
-      // Try multiple IP geolocation services for better reliability
-      const services = [
-        'https://ipapi.co/json/',
-        'https://ipinfo.io/json',
-        'https://api.ipify.org?format=json'
-      ];
-      
-      for (const service of services) {
-        try {
-          const response = await fetch(service, { 
-            signal: AbortSignal.timeout(5000) // 5 second timeout
-          });
-          const data = await response.json();
-          
-          if (data.latitude && data.longitude) {
-            console.log('IP location obtained from:', service);
-            return {
-              latitude: data.latitude,
-              longitude: data.longitude
-            };
-          }
-        } catch (serviceError) {
-          console.log(`IP service ${service} failed:`, serviceError);
-          continue;
-        }
+      const response = await fetch('/api/ip-location');
+      if (!response.ok) return null;
+      const data = await response.json();
+      if (data.latitude && data.longitude) {
+        return { latitude: data.latitude, longitude: data.longitude };
       }
     } catch (error) {
-      console.error('All IP location services failed:', error);
+      console.error('Backend IP location failed:', error);
     }
     return null;
   };
 
-  // Simplified getUserLocation with better error handling
+  // Start real-time location tracking with fallback strategy
+  const startLocationTracking = () => {
+    if (!navigator.geolocation) {
+      console.error("Geolocation is not supported by this browser");
+      setError("Geolocation is not supported by your browser. Using default view.");
+      return;
+    }
+
+    // Clear any existing watcher
+    if (locationWatcher) {
+      navigator.geolocation.clearWatch(locationWatcher);
+    }
+
+    console.log("Starting real-time location tracking with fallback strategy...");
+    
+    // Try low accuracy first to completely avoid Google API rate limits
+    const tryLowAccuracy = () => {
+      const watchId = navigator.geolocation.watchPosition(
+        (position) => {
+          const userCoords = {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          };
+          
+          console.log("Real-time location update (low accuracy):", userCoords);
+          setUserLocation(userCoords);
+          setError(null);
+          setIsLocationLoading(false);
+          
+          // Update map if initialized
+          if (mapRef.current && userLocationMarkerRef.current) {
+            updateUserLocationMarker();
+          }
+        },
+        (error: any) => {
+          console.log("Low accuracy tracking failed, trying IP-based fallback:", error);
+          
+          // Fallback to IP-based location
+          getLocationFromIP().then((ipLocation) => {
+            if (ipLocation) {
+              console.log("Using IP-based location as fallback:", ipLocation);
+              setUserLocation(ipLocation);
+              setError("Using approximate location. GPS tracking unavailable.");
+              setIsLocationLoading(false);
+              
+              if (mapRef.current && userLocationMarkerRef.current) {
+                updateUserLocationMarker();
+              }
+            } else {
+              setError("Location services unavailable. Using default view.");
+              setIsLocationLoading(false);
+            }
+          }).catch(() => {
+            setError("Location services unavailable. Using default view.");
+            setIsLocationLoading(false);
+          });
+        },
+        {
+          enableHighAccuracy: false, // Use low accuracy to avoid Google API
+          timeout: 8000, // Even shorter timeout
+          maximumAge: 120000 // 2 minutes cache to reduce API calls
+        }
+      );
+
+      setLocationWatcher(watchId);
+      console.log("Low accuracy location watcher started with ID:", watchId);
+    };
+
+
+
+    // Start with low accuracy to completely avoid Google API, then try high accuracy if needed
+    tryLowAccuracy();
+  };
+
+  // Stop real-time location tracking
+  const stopLocationTracking = () => {
+    if (locationWatcher) {
+      navigator.geolocation.clearWatch(locationWatcher);
+      setLocationWatcher(null);
+      console.log("Location tracking stopped");
+    }
+  };
+
+  // Initial location setup with aggressive Google API avoidance
   const getUserLocation = async () => {
     setIsLocationLoading(true);
     
@@ -429,50 +493,29 @@ function MapDisplay() {
       return;
     }
 
-    // Try IP-based location first to avoid Google's location services
+    // Always try IP-based location first to avoid Google API completely
     try {
       const ipLocation = await getLocationFromIP();
       if (ipLocation) {
-        console.log("Using IP-based location:", ipLocation);
+        console.log("Using IP-based location as initial position:", ipLocation);
         setUserLocation(ipLocation);
-        setError("Using approximate location based on your IP address.");
+        setError("Using approximate location. Starting GPS tracking...");
         setIsLocationLoading(false);
+        
+        // Start GPS tracking after IP location with delay
+        setTimeout(() => {
+          startLocationTracking();
+        }, 2000); // Longer delay to avoid rapid API calls
         return;
       }
     } catch (ipError) {
-      console.log("IP location failed, trying browser geolocation...", ipError);
+      console.log("IP location failed, starting GPS tracking...", ipError);
     }
 
-    // Fallback to browser geolocation with very conservative settings
-    try {
-      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(
-          resolve,
-          reject,
-          {
-            enableHighAccuracy: false, // Set to false to avoid 429 errors
-            timeout: 10000, // Reduced timeout
-            maximumAge: 600000 // 10 minutes cache to reduce API calls
-          }
-        );
-      });
-
-      const userCoords = {
-        latitude: position.coords.latitude,
-        longitude: position.coords.longitude,
-      };
-      
-      console.log("User location obtained from browser:", userCoords);
-      setUserLocation(userCoords);
-      setError(null);
-      setIsLocationLoading(false);
-      return;
-
-    } catch (geolocationError: any) {
-      console.log("Browser geolocation failed:", geolocationError);
-      setError("Could not determine your location. Using default view.");
-      setIsLocationLoading(false);
-    }
+    // If IP location fails, start GPS tracking with longer delay
+    setTimeout(() => {
+      startLocationTracking();
+    }, 3000); // Delay to avoid rapid API calls
   };
 
   const extractCoordinates = (mapsLink: string) => {
@@ -1040,6 +1083,10 @@ function MapDisplay() {
     // Cleanup function
     return () => {
       console.log("MapDisplay component unmounting, cleaning up...");
+      
+      // Stop location tracking
+      stopLocationTracking();
+      
       if (mapRef.current) {
         mapRef.current.remove();
         mapRef.current = null;
@@ -1131,7 +1178,16 @@ function MapDisplay() {
   // Add location refresh button
   const refreshUserLocation = () => {
     console.log("Refreshing user location...");
-    getUserLocation();
+    setIsLocationLoading(true);
+    setError(null);
+    
+    // Stop current tracking and restart with retry mechanism
+    stopLocationTracking();
+    
+    // Add a small delay before restarting to avoid rapid retries
+    setTimeout(() => {
+      getUserLocation();
+    }, 1000);
   };
 
   // Add open/close functions
@@ -1993,6 +2049,92 @@ function MapDisplay() {
         alignItems: 'flex-end',
         gap: 12,
       }}>
+        {/* Location Tracking Controls */}
+        <div
+          style={{
+            backgroundColor: "white",
+            borderRadius: "8px",
+            padding: "12px",
+            boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
+            display: "flex",
+            flexDirection: "column",
+            gap: "8px",
+            minWidth: "180px",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <div
+              style={{
+                width: "10px",
+                height: "10px",
+                borderRadius: "50%",
+                backgroundColor: locationWatcher ? "#28a745" : "#dc3545",
+                animation: locationWatcher ? "pulse 2s infinite" : "none",
+              }}
+            />
+            <span style={{ fontSize: "12px", fontWeight: "500" }}>
+              {locationWatcher ? "Live Tracking" : "Location Off"}
+            </span>
+          </div>
+          
+          <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+            <button
+              onClick={startLocationTracking}
+              disabled={!!locationWatcher}
+              style={{
+                padding: "4px 8px",
+                backgroundColor: locationWatcher ? "#6c757d" : "#007bff",
+                color: "white",
+                border: "none",
+                borderRadius: "4px",
+                fontSize: "10px",
+                cursor: locationWatcher ? "not-allowed" : "pointer",
+                opacity: locationWatcher ? 0.6 : 1,
+              }}
+            >
+              Start
+            </button>
+            <button
+              onClick={stopLocationTracking}
+              disabled={!locationWatcher}
+              style={{
+                padding: "4px 8px",
+                backgroundColor: !locationWatcher ? "#6c757d" : "#dc3545",
+                color: "white",
+                border: "none",
+                borderRadius: "4px",
+                fontSize: "10px",
+                cursor: !locationWatcher ? "not-allowed" : "pointer",
+                opacity: !locationWatcher ? 0.6 : 1,
+              }}
+            >
+              Stop
+            </button>
+            <button
+              onClick={refreshUserLocation}
+              style={{
+                padding: "4px 8px",
+                backgroundColor: "#28a745",
+                color: "white",
+                border: "none",
+                borderRadius: "4px",
+                fontSize: "10px",
+                cursor: "pointer",
+              }}
+            >
+              Retry
+            </button>
+          </div>
+          
+          {userLocation && (
+            <div style={{ fontSize: "10px", color: "#666" }}>
+              Lat: {userLocation.latitude.toFixed(6)}
+              <br />
+              Lng: {userLocation.longitude.toFixed(6)}
+            </div>
+          )}
+        </div>
+
         <button
           className="refresh-btn-desktop"
           onClick={refreshUserLocation}
@@ -2047,6 +2189,11 @@ function MapDisplay() {
               @keyframes spin {
                 0% { transform: rotate(0deg); }
                 100% { transform: rotate(360deg); }
+              }
+              @keyframes pulse {
+                0% { opacity: 1; }
+                50% { opacity: 0.5; }
+                100% { opacity: 1; }
               }
             `}
           </style>

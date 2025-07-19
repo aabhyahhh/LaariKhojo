@@ -59,6 +59,8 @@ const MapPreview: React.FC<MapPreviewProps> = ({ vendors = [] }) => {
   const [businessImages, setBusinessImages] = useState<string[]>([]);
   // Add helper for infinite carousel index
   const [carouselIndex, setCarouselIndex] = useState(0);
+  const [locationWatcher, setLocationWatcher] = useState<number | null>(null);
+  
   const handlePrevImage = () => {
     setCarouselIndex((prev) => (businessImages.length === 0 ? 0 : (prev - 1 + businessImages.length) % businessImages.length));
   };
@@ -160,6 +162,10 @@ const MapPreview: React.FC<MapPreviewProps> = ({ vendors = [] }) => {
 
     return () => {
       map.remove();
+      // Stop location tracking on cleanup
+      if (locationWatcher) {
+        navigator.geolocation.clearWatch(locationWatcher);
+      }
     };
   }, []);
 
@@ -171,63 +177,89 @@ const MapPreview: React.FC<MapPreviewProps> = ({ vendors = [] }) => {
     }
   }, [vendors]);
 
+  // Start real-time location tracking with fallback strategy
+  const startLocationTracking = () => {
+    if (!navigator.geolocation) {
+      console.error("Geolocation is not supported by this browser");
+      setError("Geolocation is not supported by your browser. Using default view.");
+      return;
+    }
+
+    // Clear any existing watcher
+    if (locationWatcher) {
+      navigator.geolocation.clearWatch(locationWatcher);
+    }
+
+    console.log("Starting real-time location tracking for MapPreview with fallback...");
+    
+    // Try low accuracy first to avoid Google API rate limits
+    const tryLowAccuracy = () => {
+      const watchId = navigator.geolocation.watchPosition(
+        (position) => {
+          const userCoords = {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          };
+          
+          console.log("Real-time location update in MapPreview (low accuracy):", userCoords);
+          setError(null);
+
+          // Center map on user location and add user marker
+          if (mapRef.current) {
+            mapRef.current.setView([userCoords.latitude, userCoords.longitude], 15);
+            addUserLocationMarker(userCoords);
+          }
+        },
+        (error: any) => {
+          console.log("Low accuracy tracking failed in MapPreview, using IP fallback:", error);
+          setError("Using approximate location. GPS tracking unavailable.");
+        },
+        {
+          enableHighAccuracy: false, // Use low accuracy to avoid Google API
+          timeout: 8000, // Even shorter timeout
+          maximumAge: 120000 // 2 minutes cache to reduce API calls
+        }
+      );
+
+      setLocationWatcher(watchId);
+      console.log("Low accuracy location watcher started for MapPreview with ID:", watchId);
+    };
+
+
+
+    // Start with low accuracy to completely avoid Google API
+    tryLowAccuracy();
+  };
+
+
+
+  // Use backend proxy for IP-based location
   const getUserLocation = async () => {
-    // Try IP-based location first to avoid Google's location services
     try {
-      const response = await fetch('https://ipapi.co/json/', { 
-        signal: AbortSignal.timeout(5000) 
-      });
+      const response = await fetch('/api/ip-location');
+      if (!response.ok) throw new Error('Backend IP location failed');
       const data = await response.json();
-      
       if (data.latitude && data.longitude) {
         const userCoords = {
           latitude: data.latitude,
           longitude: data.longitude,
         };
-        
         setError(null);
         if (mapRef.current) {
           mapRef.current.setView([userCoords.latitude, userCoords.longitude], 15);
           addUserLocationMarker(userCoords);
         }
+        // Start real-time tracking after IP location
+        setTimeout(() => {
+          startLocationTracking();
+        }, 1000);
         return;
       }
     } catch (ipError) {
-      console.log("IP location failed, trying browser geolocation...", ipError);
+      console.log("Backend IP location failed, starting real-time tracking...", ipError);
     }
-
-    // Fallback to browser geolocation
-    try {
-      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(
-          resolve,
-          reject,
-          {
-            enableHighAccuracy: false, // Reduced accuracy to avoid 429 errors
-            timeout: 10000, // Reduced timeout
-            maximumAge: 600000 // 10 minutes cache to reduce API calls
-          }
-        );
-      });
-
-      const userCoords = {
-        latitude: position.coords.latitude,
-        longitude: position.coords.longitude,
-      };
-      
-      setError(null);
-
-      // Center map on user location and add user marker
-      if (mapRef.current) {
-        mapRef.current.setView([userCoords.latitude, userCoords.longitude], 15);
-        
-        // Add user location marker
-        addUserLocationMarker(userCoords);
-      }
-    } catch (error) {
-      console.error("Error getting location:", error);
-      setError("Could not determine your location. Using default view.");
-    }
+    // Start real-time tracking immediately
+    startLocationTracking();
   };
 
   const addUserLocationMarker = (userCoords: { latitude: number; longitude: number }) => {
