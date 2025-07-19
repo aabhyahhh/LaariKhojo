@@ -113,7 +113,7 @@ export const handleApiResponse = async <T>(promise: Promise<{ data: { data: T } 
 
 // API methods
 export const api = {
-  getAllUsers: (page = 1, limit = 50) => handleApiResponse<Vendor[]>(apiClient.get(`/api/all-users?page=${page}&limit=${limit}`)),
+  getAllUsers: (page = 1, limit = 30) => handleApiResponse<Vendor[]>(apiClient.get(`/api/all-users?page=${page}&limit=${limit}`)),
   login: (credentials: { email: string; password: string }) => 
     handleApiResponse<{ accessToken: string }>(apiClient.post('/api/login', credentials)),
   register: (userData: Omit<Vendor, '_id'>) => 
@@ -187,6 +187,16 @@ function deriveVendorCategories(vendor: any): string[] {
 export function normalizeVendor(vendor: any): Vendor & { latitude?: number; longitude?: number } {
   let normalizedVendor: any = { ...vendor };
   
+  // Handle shortened field names from optimized API response
+  if (vendor.n) normalizedVendor.name = vendor.n;
+  if (vendor.c) normalizedVendor.contactNumber = vendor.c;
+  if (vendor.m) normalizedVendor.mapsLink = vendor.m;
+  if (vendor.o) normalizedVendor.operatingHours = vendor.o;
+  if (vendor.f) normalizedVendor.foodType = vendor.f;
+  if (vendor.lat) normalizedVendor.latitude = vendor.lat;
+  if (vendor.lng) normalizedVendor.longitude = vendor.lng;
+  if (vendor.id) normalizedVendor._id = vendor.id;
+  
   // Ensure foodType is properly set and normalized
   if (!normalizedVendor.foodType || normalizedVendor.foodType === '') {
     normalizedVendor.foodType = 'none';
@@ -198,12 +208,6 @@ export function normalizeVendor(vendor: any): Vendor & { latitude?: number; long
   
   // Derive categories from vendor data
   normalizedVendor.category = deriveVendorCategories(vendor);
-  
-  // Debug: Log foodType and categories for vendors
-  console.log(`Vendor ${vendor.name}:`, {
-    foodType: normalizedVendor.foodType,
-    categories: normalizedVendor.category
-  });
   
   // If latitude/longitude already present, return as is
   if (typeof vendor.latitude === 'number' && typeof vendor.longitude === 'number') {

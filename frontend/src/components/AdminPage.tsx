@@ -32,7 +32,7 @@ const AdminPage: React.FC = () => {
   const [businessImages, setBusinessImages] = useState<{ _id: string; imageUrl: string }[]>([]);
 
   useEffect(() => {
-    api.getAllUsers(1, 100).then(res => {
+    api.getAllUsers(1, 50).then(res => {
       if (res.success && res.data) setVendors(res.data);
     });
   }, []);

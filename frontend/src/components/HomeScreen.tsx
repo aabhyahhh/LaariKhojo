@@ -94,7 +94,7 @@ const HomeScreen: React.FC = () => {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
       
-      const response = await fetch(`${API_URL}/api/all-users?limit=50`, {
+      const response = await fetch(`${API_URL}/api/all-users?limit=30`, {
         signal: controller.signal
       });
       

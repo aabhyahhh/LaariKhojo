@@ -28,7 +28,16 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Add compression middleware to reduce response size
-app.use(compression());
+app.use(compression({
+  level: 9, // Maximum compression
+  threshold: 1024, // Compress responses larger than 1KB
+  filter: (req, res) => {
+    if (req.headers['x-no-compression']) {
+      return false;
+    }
+    return compression.filter(req, res);
+  }
+}));
 
 app.use(express.urlencoded({ extended: true }));
 app.use(cors({
@@ -94,12 +103,12 @@ app.get("/api/all-users", async (req, res) => {
   try {
     // Add pagination and limit to reduce response size
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 50; // Reduced from 100 to 50
+    const limit = parseInt(req.query.limit) || 30; // Further reduced to 30
     const skip = (page - 1) * limit;
     
-    // Only fetch essential fields to reduce response size
+    // Only fetch minimal essential fields to reduce response size
     const vendors = await User.find({})
-      .select('name email contactNumber mapsLink operatingHours foodType profilePicture bestDishes latitude longitude updatedAt')
+      .select('name contactNumber mapsLink operatingHours foodType latitude longitude')
       .limit(limit)
       .skip(skip)
       .sort({ updatedAt: -1 });
@@ -107,9 +116,28 @@ app.get("/api/all-users", async (req, res) => {
     // Get total count for pagination info
     const total = await User.countDocuments({});
     
+    // Transform data to reduce response size
+    const transformedVendors = vendors.map(vendor => ({
+      id: vendor._id,
+      n: vendor.name, // Shortened field names
+      c: vendor.contactNumber,
+      m: vendor.mapsLink,
+      o: vendor.operatingHours,
+      f: vendor.foodType,
+      lat: vendor.latitude,
+      lng: vendor.longitude
+    }));
+    
+    // Set cache headers to reduce repeated requests
+    res.set({
+      'Cache-Control': 'public, max-age=300', // Cache for 5 minutes
+      'ETag': `vendors-${page}-${limit}-${total}`,
+      'Content-Type': 'application/json'
+    });
+    
     res.json({ 
       success: true,
-      data: vendors,
+      data: transformedVendors,
       pagination: {
         page,
         limit,
