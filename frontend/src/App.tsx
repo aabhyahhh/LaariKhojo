@@ -158,6 +158,15 @@ const AREA_BOUNDARIES: { [key: string]: { lat: number; lng: number; zoom: number
   // Add more localities as needed
 };
 
+// Utility to check if coordinates are valid (India bounding box)
+function isValidIndianCoordinate(lat: number, lng: number) {
+  return (
+    typeof lat === 'number' && typeof lng === 'number' &&
+    lat >= 8 && lat <= 37 &&
+    lng >= 68 && lng <= 98
+  );
+}
+
 function MapDisplay() {
   const mapRef = useRef<L.Map | null>(null);
   const markersRef = useRef<{ [key: string]: L.Marker }>({});
@@ -1150,7 +1159,8 @@ function MapDisplay() {
       console.log("Vendors or zoom changed, updating markers...");
       // Use filtered vendors if available, otherwise use all vendors
       const vendorsToShow = filteredVendors.length > 0 ? filteredVendors : vendors;
-      updateMapMarkers(vendorsToShow);
+      const validVendorsToShow = vendorsToShow.filter(v => isValidIndianCoordinate(Number(v.latitude), Number(v.longitude)));
+      updateMapMarkers(validVendorsToShow);
     }
   }, [vendors, filteredVendors, currentZoom, isMapInitialized]);
 

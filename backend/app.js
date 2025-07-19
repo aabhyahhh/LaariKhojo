@@ -108,12 +108,15 @@ app.get("/api/all-users", async (req, res) => {
     const limit = parseInt(req.query.limit) || 30; // Further reduced to 30
     const skip = (page - 1) * limit;
     
-    // Only fetch minimal essential fields to reduce response size
-    const vendors = await User.find({})
-      .select('name contactNumber mapsLink operatingHours foodType latitude longitude')
-      .limit(limit)
-      .skip(skip)
-      .sort({ updatedAt: -1 });
+    // Only fetch vendors with valid coordinates in India
+    const vendors = await User.find({
+      latitude: { $gte: 8, $lte: 37 },
+      longitude: { $gte: 68, $lte: 98 }
+    })
+    .select('name contactNumber mapsLink operatingHours foodType latitude longitude')
+    .limit(limit)
+    .skip(skip)
+    .sort({ updatedAt: -1 });
     
     // Get total count for pagination info
     const total = await User.countDocuments({});
