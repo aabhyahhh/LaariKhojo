@@ -1,4 +1,5 @@
 import axios, { AxiosInstance, AxiosError, AxiosRequestConfig } from 'axios';
+import { API_URL } from './config';
 
 // Define types for API responses
 export interface Vendor {
@@ -36,16 +37,14 @@ export interface Review {
 // Create axios instance with default config
 const createAxiosInstance = (): AxiosInstance => {
   const instance = axios.create({
-    baseURL: import.meta.env.DEV 
-      ? 'http://localhost:3000' 
-      : 'https://laari-khojo-backend.onrender.com',
-    timeout: 10000, // 10 seconds timeout
+    baseURL: API_URL,
+    timeout: 15000, // Increased timeout to 15 seconds
     headers: {
       'Content-Type': 'application/json',
     },
   });
 
-  // Add retry logic
+  // Add retry logic with better error handling
   instance.interceptors.response.use(
     (response) => response,
     async (error: AxiosError) => {
@@ -54,16 +53,20 @@ const createAxiosInstance = (): AxiosInstance => {
       // Initialize retry count if not set
       config._retry = config._retry || 0;
       
-      // Only retry on network errors or 5xx server errors
+      // Only retry on network errors, 5xx server errors, or 429 (rate limit)
       if (
         (error.code === 'ECONNABORTED' || 
-         (error.response && error.response.status >= 500)) && 
+         (error.response && (error.response.status >= 500 || error.response.status === 429))) && 
         config._retry < 3
       ) {
         config._retry += 1;
         
-        // Exponential backoff delay
-        const delay = Math.min(1000 * Math.pow(2, config._retry), 10000);
+        // Exponential backoff delay with jitter
+        const baseDelay = Math.min(1000 * Math.pow(2, config._retry), 10000);
+        const jitter = Math.random() * 1000;
+        const delay = baseDelay + jitter;
+        
+        console.log(`Retrying request (attempt ${config._retry}/3) after ${delay}ms delay`);
         await new Promise(resolve => setTimeout(resolve, delay));
         
         return instance(config);
@@ -110,7 +113,7 @@ export const handleApiResponse = async <T>(promise: Promise<{ data: { data: T } 
 
 // API methods
 export const api = {
-  getAllUsers: () => handleApiResponse<Vendor[]>(apiClient.get('/api/all-users')),
+  getAllUsers: (page = 1, limit = 50) => handleApiResponse<Vendor[]>(apiClient.get(`/api/all-users?page=${page}&limit=${limit}`)),
   login: (credentials: { email: string; password: string }) => 
     handleApiResponse<{ accessToken: string }>(apiClient.post('/api/login', credentials)),
   register: (userData: Omit<Vendor, '_id'>) => 

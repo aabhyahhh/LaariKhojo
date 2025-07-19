@@ -2,12 +2,10 @@ import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import "./Login.css";
 import { Link } from "react-router-dom";
-
-// Update this to your proxy URL if using the proxy solution
-const API_URL = "https://laari-khojo-backend.onrender.com/";
+import { API_URL } from "../api/config";
 
 interface LoginProps {
-  onLoginSuccess?: (token: string) => void;
+  onLoginSuccess?: (token: string, user: any) => void;
   redirectPath?: string;
 }
 
@@ -51,13 +49,20 @@ function Login({ onLoginSuccess, redirectPath = "/update-profile" }: LoginProps)
       // Store token in localStorage
       console.log("Login successful, token received");
       localStorage.setItem("token", data.accessToken);
+      if (data.data) {
+        localStorage.setItem("user", JSON.stringify(data.data));
+      }
 
       // Call the success callback if provided
       if (onLoginSuccess) {
-        onLoginSuccess(data.accessToken);
+        onLoginSuccess(data.accessToken, data.data);
       } else {
-        // Only navigate directly if onLoginSuccess is not provided
+        // Redirect to /admin if user is admin or super admin
+        if (data.data?.role === "super admin" || data.data?.role === "admin") {
+          navigate("/admin");
+        } else {
         navigate(from);
+        }
       }
 
     } catch (err) {
